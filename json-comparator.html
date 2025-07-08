@@ -1,0 +1,2978 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JSON 对比结果解析工具</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+            max-width: 800px;
+            margin: 0 auto;
+            line-height: 1.5;
+        }
+
+        .content {
+            padding: 30px 40px;
+        }
+
+        .input-section {
+            margin-bottom: 30px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 600;
+            color: #333;
+            font-size: 1.1em;
+        }
+
+        .comparison-input {
+            width: 100%;
+            height: 200px;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            resize: vertical;
+            transition: border-color 0.3s ease;
+            background: #fafafa;
+        }
+
+        .comparison-input:focus {
+            outline: none;
+            border-color: #4CAF50;
+            background: white;
+        }
+
+        .controls {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 0 10px;
+            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .parsing-info {
+            background: #e8f5e8;
+            border: 2px solid #4CAF50;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .parsing-info h4 {
+            color: #2e7d32;
+            margin-bottom: 10px;
+        }
+
+        .parsing-info .extracted-json {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 10px;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .result-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .result-group {
+            min-width: 0;
+            /* 防止内容溢出 */
+        }
+
+        .result-group h3 {
+            margin-bottom: 15px;
+            color: #333;
+            font-size: 1.1em;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #4CAF50;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .result-display {
+            background: #f8f9fa;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 15px;
+            min-height: 450px;
+            max-height: 650px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            overflow: auto;
+            line-height: 1.5;
+            word-break: break-all;
+            word-wrap: break-word;
+            box-sizing: border-box;
+        }
+
+        .error {
+            color: #f44336;
+            background: #ffebee;
+            border-color: #f44336;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 10px 0;
+        }
+
+        .success {
+            color: #4CAF50;
+            background: #e8f5e8;
+            border: 2px solid #4CAF50;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 10px 0;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .diff-add {
+            background-color: #d4edda;
+            color: #155724;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+
+        .diff-remove {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+
+        .diff-change {
+            background-color: #fff3cd;
+            color: #856404;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+
+        .property-path {
+            color: #6f42c1;
+            font-weight: bold;
+        }
+
+        .json-key {
+            color: #0066cc;
+            font-weight: bold;
+        }
+
+        .json-string {
+            color: #008800;
+        }
+
+        .json-number {
+            color: #ff6600;
+        }
+
+        .json-boolean {
+            color: #cc0066;
+        }
+
+        .json-null {
+            color: #999999;
+        }
+
+        .stats {
+            background: #f0f8ff;
+            border: 2px solid #4CAF50;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .stats h4 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .stat-item {
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-number {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #4CAF50;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .diff-add-line {
+            background-color: #d4edda !important;
+            border-radius: 3px;
+        }
+
+        .diff-remove-line {
+            background-color: #f8d7da !important;
+            border-radius: 3px;
+        }
+
+        .diff-change-line {
+            background-color: #fff3cd !important;
+            border-radius: 3px;
+        }
+
+        .diff-primary-key-line {
+            background-color: #cce5ff !important;
+            border-radius: 3px;
+        }
+
+        /* 响应式设计优化 */
+        @media (max-width: 1600px) {
+            .result-section {
+                grid-template-columns: 1fr 1fr 1fr;
+                gap: 15px;
+            }
+
+            .result-display {
+                font-size: 11px;
+                padding: 12px;
+            }
+        }
+
+        @media (max-width: 1400px) {
+            .container {
+                max-width: 95%;
+            }
+
+            .content {
+                padding: 25px 30px;
+            }
+        }
+
+        @media (max-width: 1200px) {
+            .result-section {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+
+            .result-display {
+                max-height: 500px;
+                min-height: 350px;
+                font-size: 12px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                margin: 10px;
+                border-radius: 10px;
+            }
+
+            .header {
+                padding: 20px;
+            }
+
+            .header h1 {
+                font-size: 2em;
+            }
+
+            .content {
+                padding: 20px;
+            }
+
+            .result-display {
+                font-size: 11px;
+                padding: 10px;
+                max-height: 400px;
+                min-height: 300px;
+            }
+
+            .result-section {
+                gap: 15px;
+            }
+        }
+
+        /* 确保差异报告也有合适的布局 */
+        .diff-report-section {
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        .diff-report-section .result-group {
+            width: 100%;
+        }
+
+        .diff-report-section .result-display {
+            max-height: 500px;
+        }
+
+        /* Toast提示样式 */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #333;
+            color: white;
+            padding: 15px 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            z-index: 9999;
+            font-size: 14px;
+            font-weight: 500;
+            transform: translateX(400px);
+            opacity: 0;
+            transition: all 0.3s ease-in-out;
+            max-width: 300px;
+            word-wrap: break-word;
+        }
+
+        .toast.show {
+            transform: translateX(0);
+            opacity: 1;
+        }
+
+        .toast.success {
+            background: #4CAF50;
+            border-left: 4px solid #45a049;
+        }
+
+        .toast.error {
+            background: #f44336;
+            border-left: 4px solid #d32f2f;
+        }
+
+        .toast.info {
+            background: #2196F3;
+            border-left: 4px solid #1976D2;
+        }
+
+        .toast.warning {
+            background: #ff9800;
+            border-left: 4px solid #f57c00;
+        }
+
+        .toast .toast-icon {
+            display: inline-block;
+            margin-right: 8px;
+            font-size: 16px;
+        }
+
+        .toast .toast-message {
+            display: inline-block;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 JSON 响应对比工具</h1>
+            <p>智能识别数组主键，精确高亮差异位置，三列同步滚动对比</p>
+        </div>
+
+        <!-- **添加测试案例按钮** -->
+        <div style="margin-bottom: 20px; text-align: center;">
+            <button onclick="loadTestCase()"
+                style="padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 0 5px;">
+                📝 加载测试案例（普通字段差异）
+            </button>
+            <button onclick="loadBlueHighlightTestCase()"
+                style="padding: 8px 16px; background: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 0 5px;">
+                🔑 加载测试案例（主键字段差异）
+            </button>
+            <button onclick="loadIgnoredTestCase()"
+                style="padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 0 5px;">
+                🚫 加载测试案例（忽略字段测试）
+            </button>
+        </div>
+
+        <div class="content">
+            <div class="input-section">
+                <label for="comparisonInput">请输入要对比的内容：</label>
+                <textarea id="comparisonInput" class="comparison-input"
+                    placeholder="请输入格式：&#10;实际响应:&#10;{...}&#10;&#10;预期响应:&#10;{...}&#10;&#10;原始录制响应:&#10;{...}"></textarea>
+                <div class="controls">
+                    <button class="btn" onclick="parseAndCompare()">🔍 开始对比</button>
+                    <button class="btn" onclick="clearAll()">🗑️ 清空</button>
+                </div>
+                <div id="parsing-info"></div>
+            </div>
+
+            <div id="comparison-stats"></div>
+
+            <div class="result-section">
+                <div class="result-group">
+                    <h3>实际响应 (格式化)</h3>
+                    <div id="actual-result" class="result-display"></div>
+                </div>
+                <div class="result-group">
+                    <h3>预期响应 (格式化)</h3>
+                    <div id="expected-result" class="result-display"></div>
+                </div>
+                <div class="result-group">
+                    <h3>原始录制响应</h3>
+                    <div id="original-recorded-result" class="result-display"></div>
+                </div>
+            </div>
+
+            <div class="diff-report-section">
+                <div class="result-group">
+                    <h3>差异报告</h3>
+                    <div id="diff-report" class="result-display"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Toast提示函数
+        function showToast(message, type = 'info', duration = 3000) {
+            // 移除已存在的toast
+            const existingToast = document.querySelector('.toast');
+            if (existingToast) {
+                existingToast.remove();
+            }
+
+            // 创建新的toast
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            
+            // 根据类型设置图标
+            let icon = '';
+            switch(type) {
+                case 'success':
+                    icon = '✅';
+                    break;
+                case 'error':
+                    icon = '❌';
+                    break;
+                case 'warning':
+                    icon = '⚠️';
+                    break;
+                case 'info':
+                default:
+                    icon = 'ℹ️';
+                    break;
+            }
+
+            toast.innerHTML = `
+                <span class="toast-icon">${icon}</span>
+                <span class="toast-message">${message}</span>
+            `;
+
+            // 添加到页面
+            document.body.appendChild(toast);
+
+            // 显示动画
+            setTimeout(() => {
+                toast.classList.add('show');
+            }, 100);
+
+            // 自动隐藏
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => {
+                    if (toast.parentNode) {
+                        toast.parentNode.removeChild(toast);
+                    }
+                }, 300);
+            }, duration);
+        }
+
+        function parseComparisonResult(inputText) {
+            const result = {
+                actualResponse: null,
+                expectedResponse: null,
+                originalRecordedResponse: null, // 新增字段
+                parseSuccess: false,
+                errors: []
+            };
+
+            try {
+                // **改进：更好地处理被双引号包裹的内容**
+                let cleanedInput = inputText.trim();
+                
+                // 检查是否整个内容被双引号包裹
+                if (cleanedInput.startsWith('"') && cleanedInput.endsWith('"')) {
+                    console.log('检测到输入被双引号包裹，正在去除...');
+                    cleanedInput = cleanedInput.slice(1, -1);
+                    
+                    // 处理内部的转义字符
+                    cleanedInput = cleanedInput
+                        .replace(/\\"/g, '"')           // 转义的双引号
+                        .replace(/\\n/g, '\n')          // 转义的换行符
+                        .replace(/\\r/g, '\r')          // 转义的回车符
+                        .replace(/\\t/g, '\t')          // 转义的制表符
+                        .replace(/\\\\/g, '\\');        // 转义的反斜杠
+                    
+                    console.log('去除双引号后的内容长度:', cleanedInput.length);
+                }
+
+                // 查找实际响应
+                const actualMatch = cleanedInput.match(/实际响应:\s*\n([\s\S]*?)(?=\n\s*预期响应:|$)/i);
+                if (actualMatch) {
+                    result.actualResponse = actualMatch[1].trim();
+                } else {
+                    result.errors.push('未找到"实际响应"部分');
+                }
+
+                // 查找预期响应 - 改进的正则表达式
+                const expectedMatch = cleanedInput.match(/预期响应:\s*\n([\s\S]*?)(?=\n\s*原始录制响应:|$)/i);
+                if (expectedMatch) {
+                    let expectedText = expectedMatch[1].trim();
+
+                    // 尝试找到JSON的结束位置
+                    const jsonEnd = findJsonEnd(expectedText);
+                    if (jsonEnd !== -1) {
+                        expectedText = expectedText.substring(0, jsonEnd + 1);
+                    }
+
+                    result.expectedResponse = expectedText;
+                } else {
+                    result.errors.push('未找到"预期响应"部分');
+                }
+
+                // 查找原始录制响应
+                const originalRecordedMatch = cleanedInput.match(/原始录制响应:\s*\n([\s\S]*?)(?=\n|$)/i);
+                if (originalRecordedMatch) {
+                    let originalRecordedText = originalRecordedMatch[1].trim();
+
+                    // 尝试找到JSON的结束位置
+                    const originalRecordedJsonEnd = findJsonEnd(originalRecordedText);
+                    if (originalRecordedJsonEnd !== -1) {
+                        originalRecordedText = originalRecordedText.substring(0, originalRecordedJsonEnd + 1);
+                    }
+
+                    result.originalRecordedResponse = originalRecordedText;
+                } else {
+                    result.errors.push('未找到"原始录制响应"部分');
+                }
+
+                result.parseSuccess = result.actualResponse && result.expectedResponse && result.originalRecordedResponse;
+                return result;
+            } catch (error) {
+                result.errors.push(`解析错误: ${error.message}`);
+                return result;
+            }
+        }
+
+        // 新增函数：查找JSON的结束位置
+        function findJsonEnd(text) {
+            let braceCount = 0;
+            let bracketCount = 0;
+            let inString = false;
+            let escaped = false;
+            let jsonStarted = false;
+
+            for (let i = 0; i < text.length; i++) {
+                const char = text[i];
+
+                if (escaped) {
+                    escaped = false;
+                    continue;
+                }
+
+                if (char === '\\') {
+                    escaped = true;
+                    continue;
+                }
+
+                if (char === '"') {
+                    inString = !inString;
+                    continue;
+                }
+
+                if (inString) {
+                    continue;
+                }
+
+                if (char === '{') {
+                    braceCount++;
+                    jsonStarted = true;
+                } else if (char === '}') {
+                    braceCount--;
+                    if (jsonStarted && braceCount === 0 && bracketCount === 0) {
+                        return i; // 返回JSON结束的位置
+                    }
+                } else if (char === '[') {
+                    bracketCount++;
+                    jsonStarted = true;
+                } else if (char === ']') {
+                    bracketCount--;
+                    if (jsonStarted && bracketCount === 0 && braceCount === 0) {
+                        return i; // 返回JSON结束的位置
+                    }
+                }
+            }
+
+            return -1; // 没有找到完整的JSON
+        }
+
+        function unescapeJSON(str) {
+            try {
+                // 首先清理字符串：去掉首尾空白
+                let cleaned = str.trim();
+                console.log('unescapeJSON - 原始输入长度:', cleaned.length);
+                console.log('unescapeJSON - 原始输入前100字符:', cleaned.substring(0, 100));
+
+                // 去掉文本内容最后一个双引号（如果存在）
+                if (cleaned.endsWith('"')) {
+                    cleaned = cleaned.slice(0, -1);
+                    console.log('unescapeJSON - 去掉结尾双引号后长度:', cleaned.length);
+                }
+
+                // 如果开头也有双引号，也去掉
+                if (cleaned.startsWith('"')) {
+                    cleaned = cleaned.slice(1);
+                    console.log('unescapeJSON - 去掉开头双引号后长度:', cleaned.length);
+                }
+
+                // 首先尝试直接解析，如果成功说明不需要处理转义
+                try {
+                    const parsed = JSON.parse(cleaned);
+                    console.log('unescapeJSON - 直接解析成功，无需转义处理');
+                    return cleaned;
+                } catch (e) {
+                    // 解析失败，继续处理转义字符
+                    console.log('unescapeJSON - 直接解析失败，开始处理转义字符:', e.message);
+                    console.log('unescapeJSON - 错误位置:', e.message.match(/position (\d+)/)?.[1]);
+                }
+
+                let result = cleaned;
+
+                // **改进：更全面的转义字符处理**
+                // 处理常见的转义字符，按照正确的顺序处理
+                result = result
+                    .replace(/\\u([0-9a-fA-F]{4})/g, (match, code) => {
+                        return String.fromCharCode(parseInt(code, 16));
+                    })                               // \uXXXX -> Unicode字符 (先处理，避免被其他规则影响)
+                    .replace(/\\\\/g, '\x00')        // 临时替换 \\ 为特殊字符，避免干扰
+                    .replace(/\\"/g, '"')            // \" -> "
+                    .replace(/\\n/g, '\n')           // \n -> 换行
+                    .replace(/\\r/g, '\r')           // \r -> 回车
+                    .replace(/\\t/g, '\t')           // \t -> 制表符
+                    .replace(/\\b/g, '\b')           // \b -> 退格
+                    .replace(/\\f/g, '\f')           // \f -> 换页
+                    .replace(/\\\//g, '/')           // \/ -> /
+                    .replace(/\x00/g, '\\');         // 恢复 \\ -> \
+
+                console.log('unescapeJSON - 第一次转义处理后前100字符:', result.substring(0, 100));
+
+                // 尝试解析处理后的结果
+                try {
+                    const parsed = JSON.parse(result);
+                    console.log('unescapeJSON - 第一次转义处理后解析成功');
+                    return result;
+                } catch (e) {
+                    console.log('unescapeJSON - 第一次转义处理失败，尝试多重转义处理:', e.message);
+                    console.log('unescapeJSON - 错误位置:', e.message.match(/position (\d+)/)?.[1]);
+                    
+                    // 尝试处理多重转义（可能是多次编码导致的）
+                    let doubleUnescaped = result
+                        .replace(/\\\\u([0-9a-fA-F]{4})/g, (match, code) => {
+                            return String.fromCharCode(parseInt(code, 16));
+                        })
+                        .replace(/\\\\\\\\/g, '\x00')    // 临时替换 \\\\ 为特殊字符
+                        .replace(/\\\\"/g, '"')          // \\" -> "
+                        .replace(/\\\\n/g, '\n')         // \\n -> \n
+                        .replace(/\\\\r/g, '\r')         // \\r -> \r
+                        .replace(/\\\\t/g, '\t')         // \\t -> \t
+                        .replace(/\\\\b/g, '\b')         // \\b -> \b
+                        .replace(/\\\\f/g, '\f')         // \\f -> \f
+                        .replace(/\\\\\//g, '/')         // \\/ -> /
+                        .replace(/\x00/g, '\\');         // 恢复 \\\\ -> \\
+
+                    console.log('unescapeJSON - 多重转义处理后前100字符:', doubleUnescaped.substring(0, 100));
+
+                    try {
+                        const parsed = JSON.parse(doubleUnescaped);
+                        console.log('unescapeJSON - 多重转义处理后解析成功');
+                        return doubleUnescaped;
+                    } catch (e) {
+                        console.log('unescapeJSON - 多重转义处理也失败，尝试修复常见的JSON格式问题:', e.message);
+                        console.log('unescapeJSON - 错误位置:', e.message.match(/position (\d+)/)?.[1]);
+                        
+                        // 尝试修复一些常见的JSON格式问题
+                        let fixedResult = doubleUnescaped;
+                        
+                        // 修复可能的尾随逗号问题
+                        fixedResult = fixedResult.replace(/,(\s*[}\]])/g, '$1');
+                        
+                        // 修复可能的单引号问题
+                        fixedResult = fixedResult.replace(/'/g, '"');
+                        
+                        // 修复可能的属性名没有引号的问题
+                        fixedResult = fixedResult.replace(/([{,]\s*)([a-zA-Z_$][a-zA-Z0-9_$]*)\s*:/g, '$1"$2":');
+                        
+                        // **新增：尝试修复被截断的JSON**
+                        // 如果JSON看起来被截断了，尝试补全
+                        if (fixedResult.trim() && !fixedResult.trim().endsWith('}') && !fixedResult.trim().endsWith(']')) {
+                            console.log('unescapeJSON - 检测到可能被截断的JSON，尝试补全');
+                            // 统计未闭合的括号
+                            let openBraces = (fixedResult.match(/\{/g) || []).length;
+                            let closeBraces = (fixedResult.match(/\}/g) || []).length;
+                            let openBrackets = (fixedResult.match(/\[/g) || []).length;
+                            let closeBrackets = (fixedResult.match(/\]/g) || []).length;
+                            
+                            console.log(`unescapeJSON - 括号统计: { ${openBraces} vs } ${closeBraces}, [ ${openBrackets} vs ] ${closeBrackets}`);
+                            
+                            // 补全缺失的括号
+                            for (let i = 0; i < openBraces - closeBraces; i++) {
+                                fixedResult += '}';
+                            }
+                            for (let i = 0; i < openBrackets - closeBrackets; i++) {
+                                fixedResult += ']';
+                            }
+                            
+                            console.log('unescapeJSON - 补全括号后的结果长度:', fixedResult.length);
+                        }
+                        
+                        try {
+                            const parsed = JSON.parse(fixedResult);
+                            console.log('unescapeJSON - JSON格式修复后解析成功');
+                            return fixedResult;
+                        } catch (e) {
+                            console.log('unescapeJSON - 所有修复尝试都失败，返回最后处理的结果:', e.message);
+                            console.log('unescapeJSON - 最终结果前100字符:', fixedResult.substring(0, 100));
+                            console.log('unescapeJSON - 最终结果后100字符:', fixedResult.substring(Math.max(0, fixedResult.length - 100)));
+                            
+                            // **新增：最后尝试 - 如果是因为位置68的问题，尝试手动修复**
+                            if (e.message.includes('position 68') || e.message.includes('position')) {
+                                console.log('unescapeJSON - 尝试手动修复位置相关的JSON错误');
+                                // 这里可以添加更多特定的修复逻辑
+                            }
+                            
+                            return fixedResult;
+                        }
+                    }
+                }
+            } catch (e) {
+                console.log('unescapeJSON - 函数异常:', e.message);
+                return str;
+            }
+        }
+
+        function sortObjectKeys(obj) {
+            if (obj === null || typeof obj !== 'object') {
+                return obj;
+            }
+
+            if (Array.isArray(obj)) {
+                // 对数组中的每个元素递归排序
+                const sortedArray = obj.map(item => sortObjectKeys(item));
+
+                // 如果数组为空，直接返回
+                if (sortedArray.length === 0) {
+                    return sortedArray;
+                }
+
+                // 检查数组中元素的类型
+                const hasObjects = sortedArray.some(item => typeof item === 'object' && item !== null && !Array.isArray(item));
+                const hasArrays = sortedArray.some(item => Array.isArray(item));
+                const hasPrimitives = sortedArray.some(item => typeof item !== 'object' || item === null);
+
+                // 如果数组中包含对象，对这些对象进行排序
+                if (hasObjects && !hasArrays && !hasPrimitives) {
+                    return sortedArray.sort((a, b) => {
+                        return compareObjectsForSort(a, b);
+                    });
+                }
+
+                // 如果数组中只有基本类型，进行简单排序
+                if (hasPrimitives && !hasObjects && !hasArrays) {
+                    return sortedArray.sort((a, b) => {
+                        return comparePrimitivesForSort(a, b);
+                    });
+                }
+
+                // 混合类型数组，按类型分组后排序
+                return sortedArray.sort((a, b) => {
+                    // 先按类型排序：null < primitive < array < object
+                    const typeOrderA = getTypeOrder(a);
+                    const typeOrderB = getTypeOrder(b);
+
+                    if (typeOrderA !== typeOrderB) {
+                        return typeOrderA - typeOrderB;
+                    }
+
+                    // 同类型再按值排序
+                    if (typeof a === 'object' && a !== null && !Array.isArray(a)) {
+                        return compareObjectsForSort(a, b);
+                    } else {
+                        return comparePrimitivesForSort(a, b);
+                    }
+                });
+            }
+
+            // 对对象的键进行排序，并递归处理每个值
+            const sorted = {};
+            const keys = Object.keys(obj).sort();
+            keys.forEach(key => {
+                sorted[key] = sortObjectKeys(obj[key]);
+            });
+
+            return sorted;
+        }
+
+        function getTypeOrder(value) {
+            if (value === null) return 0;
+            if (typeof value !== 'object') return 1;
+            if (Array.isArray(value)) return 2;
+            return 3; // object
+        }
+
+        function compareObjectsForSort(a, b) {
+            // 为对象生成排序键：结合属性名和值
+            const getSortKey = (obj) => {
+                const keys = Object.keys(obj).sort();
+                const keyValuePairs = keys.map(key => {
+                    const value = obj[key];
+                    let valueStr;
+                    if (typeof value === 'object' && value !== null) {
+                        valueStr = JSON.stringify(value);
+                    } else {
+                        valueStr = String(value);
+                    }
+                    return `${key}:${valueStr}`;
+                });
+                return keyValuePairs.join('|');
+            };
+
+            const keyA = getSortKey(a);
+            const keyB = getSortKey(b);
+            return keyA.localeCompare(keyB);
+        }
+
+        function comparePrimitivesForSort(a, b) {
+            // 处理null值
+            if (a === null && b === null) return 0;
+            if (a === null) return -1;
+            if (b === null) return 1;
+
+            // 同类型比较
+            if (typeof a === typeof b) {
+                if (typeof a === 'string') {
+                    return a.localeCompare(b);
+                }
+                if (typeof a === 'number') {
+                    return a - b;
+                }
+                if (typeof a === 'boolean') {
+                    return a === b ? 0 : (a ? 1 : -1);
+                }
+            }
+
+            // 不同类型转换为字符串比较
+            return String(a).localeCompare(String(b));
+        }
+
+        // **添加差异过滤函数**
+        function filterIgnoredDifferences(differences) {
+            return differences.filter(diff => {
+                // 检查差异值是否包含 [IGNORED] 标记
+                const isIgnored = (diff.value1 && typeof diff.value1 === 'string' && diff.value1.includes('[IGNORED]')) ||
+                    (diff.value2 && typeof diff.value2 === 'string' && diff.value2.includes('[IGNORED]'));
+
+                if (isIgnored) {
+                    console.log(`忽略差异: 路径 "${diff.path}" 包含 [IGNORED] 标记`);
+                    return false;
+                }
+
+                // 检查路径是否在忽略列表中
+                const ignoredPaths = [
+                    'customFormPropertyMap.travel.one.screen.city.zone',
+                    'customFormPropertyMap.custom.printing.config',
+                    'customFormPropertyMap.travel.one.screen.city.recommend',
+                    'customFormPropertyMap.close.trigger.approval.enable'
+                ];
+
+                const shouldIgnore = ignoredPaths.some(ignoredPath => diff.path.includes(ignoredPath));
+                if (shouldIgnore) {
+                    console.log(`忽略差异: 路径 "${diff.path}" 在忽略列表中`);
+                    return false;
+                }
+
+                return true;
+            });
+        }
+
+        function syntaxHighlight(json, differences = [], isActual = true) {
+            if (typeof json != "string") {
+                json = JSON.stringify(json, undefined, 2);
+            }
+            json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+            // 如果没有差异，使用原来的高亮方式
+            if (!differences || differences.length === 0) {
+                return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
+                    var cls = 'json-number';
+                    if (/^"/.test(match)) {
+                        if (/:$/.test(match)) {
+                            cls = 'json-key';
+                        } else {
+                            cls = 'json-string';
+                        }
+                    } else if (/true|false/.test(match)) {
+                        cls = 'json-boolean';
+                    } else if (/null/.test(match)) {
+                        cls = 'json-null';
+                    }
+                    return '<span class="' + cls + '">' + match + '</span>';
+                });
+            }
+
+            // 有差异时，使用简化的差异高亮逻辑
+            const lines = json.split('\n');
+
+            // 添加调试信息到控制台
+            console.log('=== 调试信息 ===');
+            console.log('差异列表:', differences);
+            console.log('JSON行数:', lines.length);
+
+            // 创建路径到值的映射
+            const pathToValueMap = createSimplePathMapping(json);
+            console.log('路径映射:', pathToValueMap);
+
+            // **调试：显示主键路径映射**
+            console.log('=== 主键路径映射 ===');
+            Object.keys(pathToValueMap).forEach(path => {
+                if (path.includes('[') && path.includes('=')) {
+                    console.log(`主键路径: "${path}" -> 值:`, pathToValueMap[path]);
+                }
+            });
+            console.log('====================');
+
+            // **过滤掉被忽略的差异**
+            const filteredDifferences = filterIgnoredDifferences(differences);
+
+            console.log(`过滤后的差异数量: ${filteredDifferences.length} (原始: ${differences.length})`);
+
+            // 高亮差异行
+            const highlightedLines = lines.map((line, lineIndex) => {
+                const processedLine = highlightSyntax(line);
+                const trimmedLine = line.trim();
+
+                // 跳过空行和纯结构字符
+                if (!trimmedLine || trimmedLine === ',' || trimmedLine === '{' || trimmedLine === '}' || trimmedLine === '[' || trimmedLine === ']') {
+                    return processedLine;
+                }
+
+                // 检查当前行是否包含差异
+                let matchedDiff = null;
+
+                // 检查是否是包含值的行
+                for (const diff of filteredDifferences) {
+                    const diffPath = diff.path;
+
+                    // 检查当前行是否包含这个路径的值
+                    if (lineContainsPathValue(line, diffPath, pathToValueMap)) {
+                        matchedDiff = diff;
+                        console.log(`匹配成功 - 行 ${lineIndex}: "${trimmedLine}" 匹配差异路径 "${diffPath}"`);
+                        break;
+                    }
+                }
+
+                if (matchedDiff) {
+                    let highlightClass = '';
+                    let borderColor = '';
+
+                    // 检查是否是主键路径
+                    const isPrimaryKeyPath = matchedDiff.path.includes('[') && matchedDiff.path.includes('=');
+
+                    console.log(`高亮逻辑 - 路径: "${matchedDiff.path}", 是主键路径: ${isPrimaryKeyPath}, 差异类型: ${matchedDiff.type}`);
+
+                    // 统一的差异高亮逻辑
+                    if (matchedDiff.type === 'value') {
+                        highlightClass = isActual ? 'diff-remove-line' : 'diff-add-line';
+                        borderColor = isActual ? '#dc3545' : '#28a745';
+                        console.log(`应用值差异高亮 - 类: ${highlightClass}, 边框色: ${borderColor}`);
+                    } else if (matchedDiff.type === 'add' && !isActual) {
+                        highlightClass = 'diff-add-line';
+                        borderColor = '#28a745';
+                    } else if (matchedDiff.type === 'remove' && isActual) {
+                        highlightClass = 'diff-remove-line';
+                        borderColor = '#dc3545';
+                    } else if (matchedDiff.type === 'type') {
+                        highlightClass = 'diff-change-line';
+                        borderColor = '#ffc107';
+                    }
+
+                    if (highlightClass) {
+                        return `<div class="${highlightClass}" style="margin: 0 -20px; padding: 0 20px; border-left: 4px solid ${borderColor};">${processedLine}</div>`;
+                    }
+                }
+
+                return processedLine;
+            });
+
+            return highlightedLines.join('\n');
+        }
+
+        function createSimplePathMapping(jsonString) {
+            try {
+                const obj = JSON.parse(jsonString);
+                const pathToValueMap = {};
+
+                function traverseObject(obj, path = '', parentArray = null, arrayIndex = -1) {
+                    if (obj === null || typeof obj !== 'object') {
+                        pathToValueMap[path] = obj;
+                        return;
+                    }
+
+                    if (Array.isArray(obj)) {
+                        // **修复：使用统一的 findPrimaryKey 函数**
+                        const primaryKey = findPrimaryKey(obj);
+
+                        obj.forEach((item, index) => {
+                            // **总是创建索引路径**
+                            const indexPath = path ? `${path}[${index}]` : `[${index}]`;
+                            traverseObject(item, indexPath, obj, index);
+
+                            // **如果有主键，也创建主键路径**
+                            if (primaryKey && typeof item === 'object' && item !== null && primaryKey in item) {
+                                const primaryKeyPath = path ? `${path}[${primaryKey}=${item[primaryKey]}]` : `[${primaryKey}=${item[primaryKey]}]`;
+                                traverseObject(item, primaryKeyPath, obj, index);
+                            }
+                        });
+                    } else {
+                        Object.keys(obj).forEach(key => {
+                            const keyPath = path ? `${path}.${key}` : key;
+                            traverseObject(obj[key], keyPath);
+                        });
+                    }
+                }
+
+                // **移除重复的 findArrayPrimaryKey 函数，使用统一的 findPrimaryKey**
+
+                traverseObject(obj);
+                return pathToValueMap;
+            } catch (e) {
+                console.error('创建路径映射失败:', e);
+                return {};
+            }
+        }
+
+        function lineContainsPathValue(line, targetPath, pathToValueMap) {
+            const trimmedLine = line.trim();
+
+            // 获取目标路径的值
+            let targetValue = pathToValueMap[targetPath];
+
+            // **改进的主键路径匹配逻辑**
+            if (targetValue === undefined && targetPath.includes('[') && targetPath.includes('=')) {
+                // 尝试多种方式找到匹配的值
+                
+                // 方法1: 直接查找对应的索引路径
+                const indexPath = convertPrimaryKeyPathToIndexPath(targetPath, pathToValueMap);
+                if (indexPath) {
+                    targetValue = pathToValueMap[indexPath];
+                    console.log(`主键路径 "${targetPath}" 转换为索引路径 "${indexPath}"`);
+                }
+                
+                // 方法2: 解析主键路径，查找匹配的对象
+                if (targetValue === undefined) {
+                    const match = targetPath.match(/\[([^=]+)=([^\]]+)\]/);
+                    if (match) {
+                        const [, keyName, keyValue] = match;
+                        const basePath = targetPath.substring(0, targetPath.indexOf('['));
+                        
+                        // 查找所有以该基础路径开头的索引路径
+                        Object.keys(pathToValueMap).forEach(path => {
+                            if (path.startsWith(basePath) && path.includes('[') && !path.includes('=')) {
+                                const value = pathToValueMap[path];
+                                if (value && typeof value === 'object' && value[keyName] == keyValue) {
+                                    targetValue = value;
+                                    console.log(`通过主键匹配找到值 - 路径: "${path}", 主键: ${keyName}=${keyValue}`);
+                                }
+                            }
+                        });
+                    }
+                }
+            }
+
+            if (targetValue === undefined) {
+                console.log(`路径 "${targetPath}" 没有找到对应的值`);
+                return false;
+            }
+
+            // **增强的主键路径处理：支持整个对象的高亮**
+            if (targetPath.includes('[') && targetPath.includes('=')) {
+                console.log(`处理主键路径 "${targetPath}", 目标值:`, targetValue);
+
+                // 如果路径指向整个对象（没有具体字段），检查对象内的任何字段
+                if (!targetPath.includes('.', targetPath.lastIndexOf(']'))) {
+                    return lineContainsAnyObjectField(line, targetValue);
+                }
+
+                // 提取路径的最后一部分（字段名）
+                const parts = targetPath.split('.');
+                const fieldName = parts[parts.length - 1];
+                return lineContainsFieldValue(line, fieldName, targetValue);
+            }
+
+            // **改进普通路径处理**
+            let lastPart;
+            if (targetPath.includes('.')) {
+                const parts = targetPath.split('.');
+                lastPart = parts[parts.length - 1];
+                // 如果最后一部分包含数组索引，提取键名
+                if (lastPart.includes('[')) {
+                    lastPart = lastPart.split('[')[0];
+                }
+            } else if (targetPath.includes('[')) {
+                // 这是数组元素，检查整个对象
+                return lineContainsArrayElementValue(line, targetValue);
+            } else {
+                lastPart = targetPath;
+            }
+
+            return lineContainsFieldValue(line, lastPart, targetValue);
+        }
+
+        function lineContainsFieldValue(line, fieldName, targetValue) {
+            const trimmedLine = line.trim();
+
+            // **增强的字段值匹配逻辑**
+            if (typeof targetValue === 'string') {
+                // 转义特殊字符以用于正则表达式
+                const escapedValue = targetValue.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const keyValuePattern = new RegExp(`"${fieldName}"\\s*:\\s*"${escapedValue}"[,}\\s]*$`);
+                const matches = keyValuePattern.test(trimmedLine);
+                console.log(`字符串匹配检查 - 行: "${trimmedLine}", 字段: "${fieldName}", 目标值: "${targetValue}", 匹配: ${matches}`);
+                return matches;
+            } else if (typeof targetValue === 'number') {
+                const keyValuePattern = new RegExp(`"${fieldName}"\\s*:\\s*${targetValue}[,}\\s]*$`);
+                const matches = keyValuePattern.test(trimmedLine);
+                console.log(`数字匹配检查 - 行: "${trimmedLine}", 字段: "${fieldName}", 目标值: ${targetValue}, 匹配: ${matches}`);
+                return matches;
+            } else if (typeof targetValue === 'boolean') {
+                const keyValuePattern = new RegExp(`"${fieldName}"\\s*:\\s*${targetValue}[,}\\s]*$`);
+                const matches = keyValuePattern.test(trimmedLine);
+                console.log(`布尔匹配检查 - 行: "${trimmedLine}", 字段: "${fieldName}", 目标值: ${targetValue}, 匹配: ${matches}`);
+                return matches;
+            } else if (targetValue === null) {
+                const keyValuePattern = new RegExp(`"${fieldName}"\\s*:\\s*null[,}\\s]*$`);
+                const matches = keyValuePattern.test(trimmedLine);
+                console.log(`null匹配检查 - 行: "${trimmedLine}", 字段: "${fieldName}", 目标值: null, 匹配: ${matches}`);
+                return matches;
+            }
+
+            return false;
+        }
+
+        function lineContainsAnyObjectField(line, targetValue) {
+            if (typeof targetValue !== 'object' || targetValue === null) {
+                return false;
+            }
+
+            console.log(`检查对象字段匹配 - 行: "${line.trim()}", 目标对象:`, targetValue);
+
+            // **增强的对象字段匹配逻辑**
+            // 检查当前行是否包含目标对象的任何字段
+            for (const [key, value] of Object.entries(targetValue)) {
+                if (lineContainsFieldValue(line, key, value)) {
+                    console.log(`对象字段匹配成功 - 字段: "${key}", 值:`, value);
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        function highlightSyntax(line) {
+            return line.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
+                var cls = 'json-number';
+                if (/^"/.test(match)) {
+                    if (/:$/.test(match)) {
+                        cls = 'json-key';
+                    } else {
+                        cls = 'json-string';
+                    }
+                } else if (/true|false/.test(match)) {
+                    cls = 'json-boolean';
+                } else if (/null/.test(match)) {
+                    cls = 'json-null';
+                }
+                return '<span class="' + cls + '">' + match + '</span>';
+            });
+        }
+
+        // **将 findPrimaryKey 函数移到全局作用域，供多个函数使用**
+        function findPrimaryKey(array) {
+            if (!Array.isArray(array) || array.length === 0) {
+                return null;
+            }
+
+            // **扩展主键识别范围，包括更多可能的主键字段**
+            // 获取所有可能的主键候选项
+            const potentialKeys = new Set();
+            array.forEach(item => {
+                if (typeof item === 'object' && item !== null) {
+                    Object.keys(item).forEach(key => {
+                        const lowerKey = key.toLowerCase();
+                        // 扩展主键识别条件
+                        if (lowerKey.endsWith('id') || 
+                            lowerKey.endsWith('oid') || 
+                            lowerKey === 'version' ||
+                            lowerKey === 'name' ||
+                            lowerKey === 'code' ||
+                            lowerKey === 'key' ||
+                            lowerKey.includes('unique')) {
+                            potentialKeys.add(key);
+                        }
+                    });
+                }
+            });
+
+            console.log(`寻找主键 - 数组长度: ${array.length}, 候选主键:`, Array.from(potentialKeys));
+
+            // 按优先级排序候选项
+            const sortedKeys = Array.from(potentialKeys).sort((a, b) => {
+                // 优先级：id > oid > version > name > 其他
+                const getPriority = (key) => {
+                    const lowerKey = key.toLowerCase();
+                    if (lowerKey === 'id') return 1;
+                    if (lowerKey === 'oid') return 2;
+                    if (lowerKey === 'version') return 3;
+                    if (lowerKey === 'name') return 4;
+                    if (lowerKey === 'code') return 5;
+                    if (lowerKey === 'key') return 6;
+                    if (lowerKey.endsWith('id')) return 7;
+                    if (lowerKey.endsWith('oid')) return 8;
+                    if (lowerKey.includes('unique')) return 9;
+                    return 10;
+                };
+
+                const priorityA = getPriority(a);
+                const priorityB = getPriority(b);
+
+                if (priorityA !== priorityB) {
+                    return priorityA - priorityB;
+                }
+
+                // 同优先级按长度排序（短的优先）
+                return a.length - b.length;
+            });
+
+            // 检查每个候选主键是否唯一
+            for (const key of sortedKeys) {
+                const values = [];
+                let hasNullOrUndefined = false;
+
+                for (const item of array) {
+                    if (typeof item === 'object' && item !== null && key in item) {
+                        const value = item[key];
+                        if (value === null || value === undefined || value === '') {
+                            hasNullOrUndefined = true;
+                            break;
+                        }
+                        values.push(value);
+                    } else {
+                        hasNullOrUndefined = true;
+                        break;
+                    }
+                }
+
+                // 如果有null/undefined值或者值不唯一，跳过这个候选项
+                if (hasNullOrUndefined) {
+                    console.log(`主键 "${key}" 包含空值，跳过`);
+                    continue;
+                }
+
+                const uniqueValues = new Set(values);
+                if (uniqueValues.size === values.length && values.length > 0) {
+                    console.log(`找到有效主键: "${key}", 值:`, values);
+                    return key;
+                } else {
+                    console.log(`主键 "${key}" 有重复值，跳过. 唯一值数量: ${uniqueValues.size}, 总数量: ${values.length}`);
+                }
+            }
+
+            console.log(`未找到有效主键，将使用索引对比`);
+            return null;
+        }
+
+        function compareObjects(obj1, obj2, path = '') {
+            const differences = [];
+
+            function addDiff(type, path, value1, value2) {
+                differences.push({
+                    type: type,
+                    path: path,
+                    value1: value1,
+                    value2: value2
+                });
+            }
+
+            function createKeyValueMap(array, primaryKey) {
+                const map = new Map();
+                array.forEach((item, index) => {
+                    if (typeof item === 'object' && item !== null && primaryKey in item) {
+                        map.set(item[primaryKey], { item, originalIndex: index });
+                    }
+                });
+                return map;
+            }
+
+            function compareArraysByPrimaryKey(arr1, arr2, currentPath, primaryKey) {
+                console.log(`使用主键 "${primaryKey}" 对比数组, 路径: ${currentPath}`);
+
+                const map1 = createKeyValueMap(arr1, primaryKey);
+                const map2 = createKeyValueMap(arr2, primaryKey);
+
+                // 获取所有主键值
+                const allKeys = new Set([...map1.keys(), ...map2.keys()]);
+
+                allKeys.forEach(keyValue => {
+                    const itemPath = `${currentPath}[${primaryKey}=${keyValue}]`;
+
+                    if (!map1.has(keyValue)) {
+                        // 只在arr2中存在
+                        addDiff('add', itemPath, undefined, map2.get(keyValue).item);
+                    } else if (!map2.has(keyValue)) {
+                        // 只在arr1中存在
+                        addDiff('remove', itemPath, map1.get(keyValue).item, undefined);
+                    } else {
+                        // 两边都存在，比较内容
+                        compareValues(map1.get(keyValue).item, map2.get(keyValue).item, itemPath);
+                    }
+                });
+            }
+
+            function compareArraysByIndex(arr1, arr2, currentPath) {
+                console.log(`使用索引对比数组, 路径: ${currentPath}`);
+
+                const maxLength = Math.max(arr1.length, arr2.length);
+                for (let i = 0; i < maxLength; i++) {
+                    const itemPath = `${currentPath}[${i}]`;
+                    if (i >= arr1.length) {
+                        addDiff('add', itemPath, undefined, arr2[i]);
+                    } else if (i >= arr2.length) {
+                        addDiff('remove', itemPath, arr1[i], undefined);
+                    } else {
+                        compareValues(arr1[i], arr2[i], itemPath);
+                    }
+                }
+            }
+
+            function compareValues(val1, val2, currentPath) {
+                if (val1 === val2) return;
+
+                if (typeof val1 !== typeof val2) {
+                    addDiff('type', currentPath, typeof val1, typeof val2);
+                    return;
+                }
+
+                if (val1 === null || val2 === null) {
+                    addDiff('value', currentPath, val1, val2);
+                    return;
+                }
+
+                if (typeof val1 === 'object') {
+                    if (Array.isArray(val1) !== Array.isArray(val2)) {
+                        addDiff('type', currentPath, Array.isArray(val1) ? 'array' : 'object', Array.isArray(val2) ? 'array' : 'object');
+                        return;
+                    }
+
+                    if (Array.isArray(val1)) {
+                        // 数组比较：尝试使用主键匹配
+                        const primaryKey1 = findPrimaryKey(val1);
+                        const primaryKey2 = findPrimaryKey(val2);
+
+                        // 如果两个数组都有相同的主键，使用主键对比
+                        if (primaryKey1 && primaryKey2 && primaryKey1 === primaryKey2) {
+                            console.log(`两个数组都有相同主键 "${primaryKey1}"，使用主键对比`);
+                            compareArraysByPrimaryKey(val1, val2, currentPath, primaryKey1);
+                        } else {
+                            console.log(`数组主键不匹配或不存在 (${primaryKey1} vs ${primaryKey2})，使用索引对比`);
+                            compareArraysByIndex(val1, val2, currentPath);
+                        }
+                    } else {
+                        // 对象比较 - 增强处理缺失字段
+                        const allKeys = new Set([...Object.keys(val1), ...Object.keys(val2)]);
+                        allKeys.forEach(key => {
+                            const keyPath = currentPath ? `${currentPath}.${key}` : key;
+                            if (!(key in val1)) {
+                                // val1中缺少该字段，视为null
+                                addDiff('add', keyPath, null, val2[key]);
+                            } else if (!(key in val2)) {
+                                // val2中缺少该字段，视为null
+                                addDiff('remove', keyPath, val1[key], null);
+                            } else {
+                                compareValues(val1[key], val2[key], keyPath);
+                            }
+                        });
+                    }
+                } else {
+                    addDiff('value', currentPath, val1, val2);
+                }
+            }
+
+            compareValues(obj1, obj2, path);
+
+            // **调试：输出所有差异路径**
+            console.log('=== 所有生成的差异路径 ===');
+            differences.forEach((diff, index) => {
+                const isPrimaryKey = diff.path.includes('[') && diff.path.includes('=');
+                console.log(`${index + 1}. 路径: "${diff.path}" | 类型: ${diff.type} | 是主键路径: ${isPrimaryKey}`);
+            });
+            console.log('=============================');
+
+            return differences;
+        }
+
+        function formatDifferences(differences) {
+            if (differences.length === 0) {
+                return '<div class="success">✅ 实际响应与预期响应完全一致！</div>';
+            }
+
+            let html = '<div class="error">❌ 发现 ' + differences.length + ' 处差异：</div><br>';
+
+            differences.forEach((diff, index) => {
+                html += `<div style="margin-bottom: 15px; padding: 10px; background: #f8f9fa; border-radius: 5px; border-left: 4px solid #ff5722;">`;
+                html += `<strong>${index + 1}. </strong>`;
+                html += `<span class="property-path">路径: ${diff.path || 'root'}</span><br>`;
+
+                switch (diff.type) {
+                    case 'add':
+                        html += `<span class="diff-add">+ 预期响应新增: ${JSON.stringify(diff.value2)}</span>`;
+                        break;
+                    case 'remove':
+                        html += `<span class="diff-remove">- 实际响应缺失: ${JSON.stringify(diff.value1)}</span>`;
+                        break;
+                    case 'value':
+                        html += `<span class="diff-remove">- 实际响应: ${JSON.stringify(diff.value1)}</span><br>`;
+                        html += `<span class="diff-add">+ 预期响应: ${JSON.stringify(diff.value2)}</span>`;
+                        break;
+                    case 'type':
+                        html += `<span class="diff-change">类型不同: 实际(${diff.value1}) → 预期(${diff.value2})</span>`;
+                        break;
+                }
+                html += '</div>';
+            });
+
+            return html;
+        }
+
+        function generateStats(obj1, obj2, differences) {
+            function countProperties(obj) {
+                let count = 0;
+                function countRecursive(o) {
+                    if (typeof o === 'object' && o !== null) {
+                        if (Array.isArray(o)) {
+                            count += o.length;
+                            o.forEach(countRecursive);
+                        } else {
+                            const keys = Object.keys(o);
+                            count += keys.length;
+                            keys.forEach(key => countRecursive(o[key]));
+                        }
+                    }
+                }
+                countRecursive(obj);
+                return count;
+            }
+
+            const stats1 = countProperties(obj1);
+            const stats2 = countProperties(obj2);
+            const diffCount = differences.length;
+            const similarity = Math.max(0, Math.round((1 - diffCount / Math.max(stats1, stats2, 1)) * 100));
+
+            return `
+                <div class="stats">
+                    <h4>📊 对比统计</h4>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-number">${stats1}</div>
+                            <div class="stat-label">实际响应属性数</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number">${stats2}</div>
+                            <div class="stat-label">预期响应属性数</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number">${diffCount}</div>
+                            <div class="stat-label">差异数量</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number">${similarity}%</div>
+                            <div class="stat-label">匹配度</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function formatError(error, jsonString, responseType) {
+            let errorHtml = `<div class="error">❌ ${responseType}解析错误: ${error.message}</div>`;
+
+            // 处理特定的JSON解析错误
+            if (error.message.includes('position')) {
+                const positionMatch = error.message.match(/position (\d+)/);
+                if (positionMatch) {
+                    const position = parseInt(positionMatch[1]);
+                    const contextStart = Math.max(0, position - 50);
+                    const contextEnd = Math.min(jsonString.length, position + 50);
+                    const context = jsonString.substring(contextStart, contextEnd);
+                    const errorPosition = position - contextStart;
+
+                    errorHtml += `
+                        <div style="margin: 15px 0; padding: 15px; background: #ffe6e6; border: 1px solid #ff9999; border-radius: 8px;">
+                            <h4 style="margin-bottom: 10px; color: #d32f2f;">🔍 错误位置详情</h4>
+                            <p style="color: #d32f2f; margin-bottom: 10px;">错误发生在第 ${position} 个字符处</p>
+                            <div style="background: #f5f5f5; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 12px; word-break: break-all;">
+                                <div style="color: #666; margin-bottom: 5px;">上下文内容:</div>
+                                <div style="white-space: pre-wrap;">${context.substring(0, errorPosition)}<span style="background: #ff0000; color: white; padding: 1px 2px;">⚠</span>${context.substring(errorPosition)}</div>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+
+            // 检查是否是因为额外内容导致的错误
+            if (error.message.includes('Unexpected') && error.message.includes('after JSON')) {
+                errorHtml += `
+                    <div style="margin: 15px 0; padding: 15px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px;">
+                        <h4 style="margin-bottom: 10px; color: #856404;">💡 可能的原因</h4>
+                        <p style="color: #856404; margin-bottom: 10px;">JSON后面可能包含额外的文本内容，导致解析失败。</p>
+                        <div style="background: #f8f9fa; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 12px; max-height: 150px; overflow-y: auto;">
+                            <div style="color: #666; margin-bottom: 5px;">完整内容:</div>
+                            <div style="white-space: pre-wrap; word-break: break-all;">${jsonString}</div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            errorHtml += `
+                <div style="margin: 15px 0; padding: 15px; background: #e3f2fd; border: 1px solid #90caf9; border-radius: 8px;">
+                    <h4 style="margin-bottom: 10px; color: #1976d2;">🔧 解决建议</h4>
+                    <ul style="margin-left: 20px; color: #1976d2;">
+                        <li>检查JSON格式是否正确，确保所有大括号和方括号都匹配</li>
+                        <li>确保所有字符串都用双引号包围</li>
+                        <li>检查是否有多余的逗号或缺少逗号</li>
+                        <li>如果JSON后面有额外文本，请删除或用分隔符分开</li>
+                        <li>如果包含转义字符，请确保转义格式正确</li>
+                    </ul>
+                </div>
+            `;
+
+            return errorHtml;
+        }
+
+        function parseAndCompare() {
+            const inputText = document.getElementById('comparisonInput').value.trim();
+
+            if (!inputText) {
+                showToast('请输入对比结果字符串', 'warning');
+                return;
+            }
+
+            // 检查数据大小，如果超过1MB使用优化模式
+            const inputSize = new Blob([inputText]).size;
+            const isLargeData = inputSize > 1024 * 1024; // 1MB
+            
+            if (isLargeData) {
+                showToast('🔄 检测到大数据，启用性能优化模式...', 'info', 2000);
+                parseAndCompareLarge(inputText, inputSize);
+            } else {
+                // 显示开始解析的toast
+                showToast('🔄 开始解析JSON数据...', 'info', 2000);
+                
+                // 使用setTimeout让toast有时间显示，然后开始解析
+                setTimeout(() => {
+                    parseAndCompareNormal(inputText);
+                }, 200);
+            }
+        }
+
+        // 优化后的大数据处理函数
+        function parseAndCompareLarge(inputText, inputSize) {
+            // 创建进度指示器
+            const progressContainer = document.createElement('div');
+            progressContainer.id = 'progress-container';
+            progressContainer.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: white;
+                padding: 30px;
+                border-radius: 10px;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+                z-index: 10000;
+                min-width: 300px;
+                text-align: center;
+            `;
+            
+            progressContainer.innerHTML = `
+                <h3 style="margin-bottom: 20px; color: #333;">🚀 处理大数据中...</h3>
+                <div style="background: #f0f0f0; height: 20px; border-radius: 10px; overflow: hidden; margin-bottom: 15px;">
+                    <div id="progress-bar" style="height: 100%; background: linear-gradient(90deg, #4CAF50, #45a049); width: 0%; transition: width 0.3s ease;"></div>
+                </div>
+                <div id="progress-text" style="color: #666; font-size: 14px;">准备中...</div>
+                <div style="margin-top: 15px; font-size: 12px; color: #999;">
+                    数据大小: ${(inputSize / 1024 / 1024).toFixed(2)} MB
+                </div>
+            `;
+            
+            document.body.appendChild(progressContainer);
+            
+            // 使用 requestIdleCallback 进行分块处理
+            const tasks = [];
+            let currentProgress = 0;
+            
+            const updateProgress = (step, total, message) => {
+                currentProgress = (step / total) * 100;
+                const progressBar = document.getElementById('progress-bar');
+                const progressText = document.getElementById('progress-text');
+                if (progressBar) progressBar.style.width = currentProgress + '%';
+                if (progressText) progressText.textContent = message;
+            };
+            
+            // 分步骤处理
+            const processSteps = [
+                {
+                    name: '解析输入文本...',
+                    fn: () => parseComparisonResult(inputText)
+                },
+                {
+                    name: '处理转义字符...',
+                    fn: (parseResult) => {
+                        return {
+                            actualResponse: unescapeJSONOptimized(parseResult.actualResponse),
+                            expectedResponse: unescapeJSONOptimized(parseResult.expectedResponse),
+                            originalRecordedResponse: unescapeJSONOptimized(parseResult.originalRecordedResponse),
+                            parseResult
+                        };
+                    }
+                },
+                {
+                    name: '解析JSON对象...',
+                    fn: (data) => {
+                        const actualObj = JSON.parse(data.actualResponse);
+                        const expectedObj = JSON.parse(data.expectedResponse);
+                        const originalObj = JSON.parse(data.originalRecordedResponse);
+                        return { actualObj, expectedObj, originalObj, parseResult: data.parseResult };
+                    }
+                },
+                {
+                    name: '排序对象键...',
+                    fn: (data) => {
+                        return {
+                            sortedActual: sortObjectKeysOptimized(data.actualObj),
+                            sortedExpected: sortObjectKeysOptimized(data.expectedObj),
+                            sortedOriginal: sortObjectKeysOptimized(data.originalObj),
+                            parseResult: data.parseResult
+                        };
+                    }
+                },
+                {
+                    name: '比较差异...',
+                    fn: (data) => {
+                        const differences = compareObjectsOptimized(data.sortedActual, data.sortedExpected);
+                        const filteredDifferences = filterIgnoredDifferences(differences);
+                        return { ...data, differences, filteredDifferences };
+                    }
+                },
+                {
+                    name: '生成显示结果...',
+                    fn: (data) => {
+                        const formattedActual = JSON.stringify(data.sortedActual, null, 2);
+                        const formattedExpected = JSON.stringify(data.sortedExpected, null, 2);
+                        const formattedOriginal = JSON.stringify(data.sortedOriginal, null, 2);
+                        
+                        return {
+                            ...data,
+                            formattedActual,
+                            formattedExpected,
+                            formattedOriginal
+                        };
+                    }
+                }
+            ];
+            
+            let stepIndex = 0;
+            let stepData = null;
+            
+            const processNextStep = () => {
+                if (stepIndex >= processSteps.length) {
+                    // 完成所有步骤
+                    finalizeLargeDataProcessing(stepData);
+                    return;
+                }
+                
+                const step = processSteps[stepIndex];
+                updateProgress(stepIndex, processSteps.length, step.name);
+                
+                // 使用 setTimeout 让浏览器有时间更新UI
+                setTimeout(() => {
+                    try {
+                        stepData = step.fn(stepData);
+                        stepIndex++;
+                        
+                        // 使用 requestIdleCallback 或 setTimeout 继续下一步
+                        if (window.requestIdleCallback) {
+                            requestIdleCallback(processNextStep, { timeout: 1000 });
+                        } else {
+                            setTimeout(processNextStep, 10);
+                        }
+                    } catch (error) {
+                        console.error('处理步骤失败:', error);
+                        showToast('❌ 处理过程中发生错误', 'error');
+                        document.body.removeChild(progressContainer);
+                    }
+                }, 10);
+            };
+            
+            // 开始处理
+            processNextStep();
+        }
+        
+        // 完成大数据处理
+        function finalizeLargeDataProcessing(data) {
+            const progressContainer = document.getElementById('progress-container');
+            if (progressContainer) {
+                document.body.removeChild(progressContainer);
+            }
+            
+            // 显示解析信息
+            const parsingHtml = `
+                <div class="parsing-info">
+                    <h4>✅ 大数据解析成功</h4>
+                    <p><strong>实际响应长度:</strong> ${data.parseResult.actualResponse.length} 字符</p>
+                    <p><strong>预期响应长度:</strong> ${data.parseResult.expectedResponse.length} 字符</p>
+                    <p><strong>原始录制响应长度:</strong> ${data.parseResult.originalRecordedResponse.length} 字符</p>
+                    <p><strong>性能优化:</strong> 已启用大数据优化模式</p>
+                </div>
+            `;
+            document.getElementById('parsing-info').innerHTML = parsingHtml;
+            
+            // 使用虚拟滚动显示结果
+            displayLargeDataResults(data);
+            
+            // 显示统计信息
+            document.getElementById('comparison-stats').innerHTML = generateStats(data.sortedActual, data.sortedExpected, data.filteredDifferences);
+            
+            // 显示差异报告
+            const simplifiedDiffReport = data.filteredDifferences.length === 0 ?
+                '<div class="success">✅ 实际响应与预期响应完全一致！</div>' :
+                `<div class="error">❌ 发现 ${data.filteredDifferences.length} 处差异，已在上方格式化结果中用颜色高亮标注</div>`;
+            document.getElementById('diff-report').innerHTML = simplifiedDiffReport;
+            
+            // 显示完成解析的toast
+            if (data.filteredDifferences.length === 0) {
+                showToast('✅ 大数据解析完成！响应完全一致', 'success');
+            } else {
+                showToast(`⚠️ 大数据解析完成！发现 ${data.filteredDifferences.length} 处差异`, 'warning');
+            }
+        }
+
+        // 原始的正常数据处理函数
+        function parseAndCompareNormal(inputText) {
+            try {
+                // 解析输入文本
+                const parseResult = parseComparisonResult(inputText);
+
+                if (!parseResult.parseSuccess) {
+                    showToast('❌ 解析失败，请检查输入格式', 'error');
+                    const errorHtml = `
+                        <div class="parsing-info">
+                            <h4>❌ 解析失败</h4>
+                            <div class="error">
+                                ${parseResult.errors.join('<br>')}
+                            </div>
+                            <p style="margin-top: 15px; color: #666;">
+                                请确保输入文本包含"实际响应:"、"预期响应:"和"原始录制响应:"部分
+                            </p>
+                        </div>
+                    `;
+                    document.getElementById('parsing-info').innerHTML = errorHtml;
+                    document.getElementById('actual-result').innerHTML = '';
+                    document.getElementById('expected-result').innerHTML = '';
+                    document.getElementById('original-recorded-result').innerHTML = '';
+                    document.getElementById('diff-report').innerHTML = '';
+                    document.getElementById('comparison-stats').innerHTML = '';
+                    return;
+                }
+
+                // 显示解析信息
+                const parsingHtml = `
+                    <div class="parsing-info">
+                        <h4>✅ 解析成功</h4>
+                        <p><strong>实际响应长度:</strong> ${parseResult.actualResponse.length} 字符</p>
+                        <p><strong>预期响应长度:</strong> ${parseResult.expectedResponse.length} 字符</p>
+                        <p><strong>原始录制响应长度:</strong> ${parseResult.originalRecordedResponse.length} 字符</p>
+                        <details style="margin-top: 10px;">
+                            <summary style="cursor: pointer; color: #4CAF50; font-weight: bold;">查看原始JSON字符串</summary>
+                            <div style="margin-top: 10px;">
+                                <p><strong>实际响应原文:</strong></p>
+                                <div class="extracted-json">${parseResult.actualResponse}</div>
+                                <p><strong>预期响应原文:</strong></p>
+                                <div class="extracted-json">${parseResult.expectedResponse}</div>
+                                <p><strong>原始录制响应原文:</strong></p>
+                                <div class="extracted-json">${parseResult.originalRecordedResponse}</div>
+                            </div>
+                        </details>
+                    </div>
+                `;
+                document.getElementById('parsing-info').innerHTML = parsingHtml;
+
+                // 去除转义字符并解析JSON
+                const unescapedActual = unescapeJSON(parseResult.actualResponse);
+                const unescapedExpected = unescapeJSON(parseResult.expectedResponse);
+                const unescapedOriginal = unescapeJSON(parseResult.originalRecordedResponse);
+
+                let actualObj, expectedObj, originalObj;
+
+                // 尝试解析实际响应
+                try {
+                    actualObj = JSON.parse(unescapedActual);
+                    console.log('实际响应解析成功');
+                } catch (error) {
+                    console.log('实际响应解析失败:', error.message);
+                    console.log('实际响应内容:', unescapedActual);
+                    
+                    // **新增：如果第一次解析失败，尝试进一步处理**
+                    console.log('尝试对实际响应进行进一步处理...');
+                    try {
+                        // 再次调用unescapeJSON，可能需要多次处理
+                        const doubleUnescapedActual = unescapeJSON(unescapedActual);
+                        console.log('实际响应二次处理结果:', doubleUnescapedActual.substring(0, 100));
+                        actualObj = JSON.parse(doubleUnescapedActual);
+                        console.log('实际响应二次处理后解析成功');
+                    } catch (secondError) {
+                        console.log('实际响应二次处理也失败:', secondError.message);
+                        showToast('❌ 实际响应JSON格式错误', 'error');
+                        document.getElementById('actual-result').innerHTML = formatError(error, unescapedActual, '实际响应');
+                        document.getElementById('expected-result').innerHTML = '<div class="error">等待实际响应解析成功后进行对比</div>';
+                        document.getElementById('original-recorded-result').innerHTML = '<div class="error">等待实际响应解析成功后进行对比</div>';
+                        document.getElementById('diff-report').innerHTML = '<div class="error">无法进行对比，请先修复实际响应的JSON格式</div>';
+                        document.getElementById('comparison-stats').innerHTML = '';
+                        return;
+                    }
+                }
+
+                // 尝试解析预期响应
+                try {
+                    expectedObj = JSON.parse(unescapedExpected);
+                    console.log('预期响应解析成功');
+                } catch (error) {
+                    console.log('预期响应解析失败:', error.message);
+                    console.log('预期响应内容:', unescapedExpected);
+                    
+                    // **新增：如果第一次解析失败，尝试进一步处理**
+                    console.log('尝试对预期响应进行进一步处理...');
+                    try {
+                        // 再次调用unescapeJSON，可能需要多次处理
+                        const doubleUnescapedExpected = unescapeJSON(unescapedExpected);
+                        console.log('预期响应二次处理结果:', doubleUnescapedExpected.substring(0, 100));
+                        expectedObj = JSON.parse(doubleUnescapedExpected);
+                        console.log('预期响应二次处理后解析成功');
+                    } catch (secondError) {
+                        console.log('预期响应二次处理也失败:', secondError.message);
+                        showToast('❌ 预期响应JSON格式错误', 'error');
+                        document.getElementById('expected-result').innerHTML = formatError(error, unescapedExpected, '预期响应');
+                        document.getElementById('actual-result').innerHTML = '<div class="success">实际响应解析成功</div>';
+                        document.getElementById('original-recorded-result').innerHTML = '<div class="success">原始录制响应解析成功</div>';
+                        document.getElementById('diff-report').innerHTML = '<div class="error">无法进行对比，请先修复预期响应的JSON格式</div>';
+                        document.getElementById('comparison-stats').innerHTML = '';
+                        return;
+                    }
+                }
+
+                // 尝试解析原始录制响应
+                try {
+                    originalObj = JSON.parse(unescapedOriginal);
+                    console.log('原始录制响应解析成功');
+                } catch (error) {
+                    console.log('原始录制响应解析失败:', error.message);
+                    console.log('原始录制响应内容:', unescapedOriginal);
+                    
+                    // **新增：如果第一次解析失败，尝试进一步处理**
+                    console.log('尝试对原始录制响应进行进一步处理...');
+                    try {
+                        // 再次调用unescapeJSON，可能需要多次处理
+                        const doubleUnescapedOriginal = unescapeJSON(unescapedOriginal);
+                        console.log('原始录制响应二次处理结果:', doubleUnescapedOriginal.substring(0, 100));
+                        originalObj = JSON.parse(doubleUnescapedOriginal);
+                        console.log('原始录制响应二次处理后解析成功');
+                    } catch (secondError) {
+                        console.log('原始录制响应二次处理也失败:', secondError.message);
+                        showToast('❌ 原始录制响应JSON格式错误', 'error');
+                        document.getElementById('original-recorded-result').innerHTML = formatError(error, unescapedOriginal, '原始录制响应');
+                        document.getElementById('actual-result').innerHTML = '<div class="success">实际响应解析成功</div>';
+                        document.getElementById('expected-result').innerHTML = '<div class="success">预期响应解析成功</div>';
+                        document.getElementById('diff-report').innerHTML = '<div class="error">无法进行对比，请先修复原始录制响应的JSON格式</div>';
+                        document.getElementById('comparison-stats').innerHTML = '';
+                        return;
+                    }
+                }
+
+                // 三个JSON都解析成功，进行对比
+                const sortedActual = sortObjectKeys(actualObj);
+                const sortedExpected = sortObjectKeys(expectedObj);
+                const sortedOriginal = sortObjectKeys(originalObj);
+
+                // 比较差异
+                const differences = compareObjects(sortedActual, sortedExpected);
+
+                // **过滤掉被忽略的差异**
+                const filteredDifferences = filterIgnoredDifferences(differences);
+
+                console.log(`主要比较逻辑 - 原始差异数量: ${differences.length}, 过滤后差异数量: ${filteredDifferences.length}`);
+
+                // 格式化显示（带差异高亮）
+                const formattedActual = JSON.stringify(sortedActual, null, 2);
+                const formattedExpected = JSON.stringify(sortedExpected, null, 2);
+                const formattedOriginal = JSON.stringify(sortedOriginal, null, 2);
+
+                document.getElementById('actual-result').innerHTML = syntaxHighlight(formattedActual, filteredDifferences, true);
+                document.getElementById('expected-result').innerHTML = syntaxHighlight(formattedExpected, filteredDifferences, false);
+                document.getElementById('original-recorded-result').innerHTML = syntaxHighlight(formattedOriginal, filteredDifferences, false);
+
+                // **初始化同步滚动功能**
+                setTimeout(() => {
+                    initSyncScroll();
+                }, 100);
+
+                // 显示统计信息（使用过滤后的差异）
+                document.getElementById('comparison-stats').innerHTML = generateStats(sortedActual, sortedExpected, filteredDifferences);
+
+                // 显示差异报告（简化版，使用过滤后的差异）
+                const simplifiedDiffReport = filteredDifferences.length === 0 ?
+                    '<div class="success">✅ 实际响应与预期响应完全一致！</div>' :
+                    `<div class="error">❌ 发现 ${filteredDifferences.length} 处差异，已在上方格式化结果中用颜色高亮标注
+                    <br><br>
+                    <div style="font-size: 0.9em; color: #666; margin-top: 10px;">
+                        <div style="margin: 5px 0;">🔴 <span style="background: #f8d7da; padding: 2px 6px; border-radius: 3px;">红色背景</span> = 实际响应中的差异值</div>
+                        <div style="margin: 5px 0;">🟢 <span style="background: #d4edda; padding: 2px 6px; border-radius: 3px;">绿色背景</span> = 预期响应中的差异值</div>
+                        <div style="margin: 5px 0;">🟡 <span style="background: #fff3cd; padding: 2px 6px; border-radius: 3px;">黄色背景</span> = 类型差异</div>
+                    </div>
+                    </div>`;
+
+                document.getElementById('diff-report').innerHTML = simplifiedDiffReport;
+
+                // 显示完成解析的toast
+                if (filteredDifferences.length === 0) {
+                    showToast('✅ 解析完成！响应完全一致', 'success');
+                } else {
+                    showToast(`⚠️ 解析完成！发现 ${filteredDifferences.length} 处差异`, 'warning');
+                }
+
+            } catch (error) {
+                showToast('❌ 解析过程中发生错误', 'error');
+                const errorMsg = `<div class="error">❌ 未知错误: ${error.message}</div>`;
+                document.getElementById('actual-result').innerHTML = errorMsg;
+                document.getElementById('expected-result').innerHTML = errorMsg;
+                document.getElementById('original-recorded-result').innerHTML = errorMsg;
+                document.getElementById('diff-report').innerHTML = errorMsg;
+                document.getElementById('comparison-stats').innerHTML = '';
+            }
+        }
+
+        function clearAll() {
+            document.getElementById('comparisonInput').value = '';
+            document.getElementById('parsing-info').innerHTML = '';
+            document.getElementById('actual-result').innerHTML = '';
+            document.getElementById('expected-result').innerHTML = '';
+            document.getElementById('original-recorded-result').innerHTML = '';
+            document.getElementById('diff-report').innerHTML = '';
+            document.getElementById('comparison-stats').innerHTML = '';
+            showToast('🗑️ 已清空所有内容', 'info', 2000);
+        }
+
+        // 自动解析功能
+        let timeoutId;
+        function autoParseAndCompare() {
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(() => {
+                const input = document.getElementById('comparisonInput').value.trim();
+                if (input) {
+                    parseAndCompare();
+                }
+            }, 1500); // 延长到1.5秒，因为输入可能较长
+        }
+
+        // 添加输入监听器
+        document.getElementById('comparisonInput').addEventListener('input', autoParseAndCompare);
+
+        // 键盘快捷键
+        document.addEventListener('keydown', function (e) {
+            if (e.ctrlKey && e.key === 'Enter') {
+                parseAndCompare();
+            } else if (e.ctrlKey && e.key === 'Delete') {
+                clearAll();
+            }
+        });
+
+        // 添加同步滚动功能
+        function initSyncScroll() {
+            const actualResult = document.getElementById('actual-result');
+            const expectedResult = document.getElementById('expected-result');
+            const originalRecordedResult = document.getElementById('original-recorded-result');
+
+            // 使用单一的滚动状态标志
+            let isSyncing = false;
+
+            function syncScroll(sourceElement, targetElements) {
+                if (isSyncing) return;
+
+                isSyncing = true;
+
+                // 计算滚动比例
+                const scrollTop = sourceElement.scrollTop;
+                const scrollHeight = sourceElement.scrollHeight;
+                const clientHeight = sourceElement.clientHeight;
+                const scrollPercentage = scrollHeight > clientHeight ? scrollTop / (scrollHeight - clientHeight) : 0;
+
+                // 应用到所有目标元素
+                targetElements.forEach(target => {
+                    if (target && target.scrollHeight > target.clientHeight) {
+                        const targetScrollTop = scrollPercentage * (target.scrollHeight - target.clientHeight);
+                        target.scrollTop = targetScrollTop;
+                    }
+                });
+
+                // 使用 requestAnimationFrame 确保滚动完成后再重置标志
+                requestAnimationFrame(() => {
+                    isSyncing = false;
+                });
+            }
+
+            // 为每个元素添加滚动监听器
+            if (actualResult) {
+                actualResult.addEventListener('scroll', () => {
+                    syncScroll(actualResult, [expectedResult, originalRecordedResult]);
+                });
+            }
+
+            if (expectedResult) {
+                expectedResult.addEventListener('scroll', () => {
+                    syncScroll(expectedResult, [actualResult, originalRecordedResult]);
+                });
+            }
+
+            if (originalRecordedResult) {
+                originalRecordedResult.addEventListener('scroll', () => {
+                    syncScroll(originalRecordedResult, [actualResult, expectedResult]);
+                });
+            }
+        }
+
+        function convertPrimaryKeyPathToIndexPath(primaryKeyPath, pathToValueMap) {
+            console.log(`尝试转换主键路径: "${primaryKeyPath}"`);
+            
+            // **解析主键路径格式: [keyName=value] 或 basePath[keyName=value]**
+            const match = primaryKeyPath.match(/^(.*)?\[([^=]+)=([^\]]+)\](.*)$/);
+            if (!match) {
+                console.log(`主键路径格式无效: "${primaryKeyPath}"`);
+                return null;
+            }
+            
+            const [, basePath = '', keyName, keyValue, suffixPath = ''] = match;
+            console.log(`解析主键路径 - 基础路径: "${basePath}", 主键名: "${keyName}", 主键值: "${keyValue}", 后缀: "${suffixPath}"`);
+            
+            // **查找所有可能的索引路径**
+            for (const [path, value] of Object.entries(pathToValueMap)) {
+                // 检查是否是索引路径（包含[数字]但不包含=）
+                if (path.includes('[') && !path.includes('=')) {
+                    // 检查基础路径是否匹配
+                    if (basePath && !path.startsWith(basePath)) {
+                        continue;
+                    }
+                    
+                    // 提取索引部分
+                    const indexMatch = path.match(/\[(\d+)\]/);
+                    if (!indexMatch) {
+                        continue;
+                    }
+                    
+                    // 检查后缀路径
+                    const expectedSuffixStart = path.indexOf(']') + 1;
+                    const actualSuffix = path.substring(expectedSuffixStart);
+                    if (suffixPath && actualSuffix !== suffixPath) {
+                        continue;
+                    }
+                    
+                    // 获取该路径对应的值
+                    const pathValue = pathToValueMap[path];
+                    
+                    // **检查值是否匹配主键条件**
+                    if (pathValue && typeof pathValue === 'object' && pathValue !== null) {
+                        // 对于对象，检查主键字段是否匹配
+                        if (pathValue[keyName] == keyValue) {
+                            console.log(`找到匹配的索引路径: "${path}" (主键 ${keyName}=${keyValue})`);
+                            return path;
+                        }
+                    } else if (keyName === 'index' && pathValue == keyValue) {
+                        // 特殊情况：如果主键名是index，直接比较值
+                        console.log(`找到匹配的索引路径: "${path}" (索引值匹配)`);
+                        return path;
+                    }
+                }
+            }
+            
+            console.log(`未找到匹配的索引路径 for "${primaryKeyPath}"`);
+            return null;
+        }
+
+        function lineContainsArrayElementValue(line, targetValue) {
+            const trimmedLine = line.trim();
+
+            if (typeof targetValue === 'object' && targetValue !== null) {
+                // 对于对象值，检查是否包含其中的某个属性
+                for (const [key, value] of Object.entries(targetValue)) {
+                    if (lineContainsFieldValue(line, key, value)) {
+                        return true;
+                    }
+                }
+            } else {
+                // 对于基本类型值，直接检查
+                const valueStr = JSON.stringify(targetValue);
+                if (trimmedLine.includes(valueStr.slice(1, -1)) || trimmedLine.includes(valueStr)) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        // **添加测试案例函数**
+        function loadTestCase() {
+            const testCase = `=== ID映射记录 ===
+说明：系统检测到ID字段差异，已自动建立映射关系进行对比
+
+【映射详情】
+ID映射记录:
+源ID: 20250703154558001 -> 目标ID: 20250708003158001 (字段类型: auto-detected, 路径: comparison-result)
+源ID: 1940678386632757250 -> 目标ID: 1942260311079915521 (字段类型: auto-detected, 路径: comparison-result)
+
+=== 比较结果说明 ===
+✓ 对比结果：完全一致
+原因：实际响应与预期响应在所有字段上都完全匹配
+注意：检测到ID字段差异，已自动应用ID映射规则
+
+=== 响应数据 ===
+实际响应:
+{"id":"1942260311079915521","applicationBatchId":"20250708003158001","tenantId":"1283317448444624897","roleId":"check-cost-application","status":0,"type":null,"createdBy":"86cffbd6-6ec3-435c-a82a-e24bce28637f","userName":"测测十","userEmployeeId":"new10","attachmentOid":null,"errorMsg":null,"actualBatchSize":5}
+
+预期响应:
+{"createdBy":"86cffbd6-6ec3-435c-a82a-e24bce28637f","roleId":"check-cost-application","tenantId":"1283317448444624897","userEmployeeId":"new10","attachmentOid":null,"actualBatchSize":5,"applicationBatchId":"20250703154558001","id":"1940678386632757250","type":null,"userName":"测测十","status":0,"errorMsg":null}
+
+原始录制响应:
+{"id":"1933060616021368834","applicationBatchId":"20250612151540001","tenantId":"1283317448444624897","roleId":"check-cost-application","status":0,"type":null,"createdBy":"86cffbd6-6ec3-435c-a82a-e24bce28637f","userName":"测测十","userEmployeeId":"new10","attachmentOid":null,"errorMsg":null,"actualBatchSize":5}`;
+
+            document.getElementById('comparisonInput').value = testCase;
+            showToast('📝 已加载普通字段差异测试案例', 'info', 2000);
+            // 自动执行对比
+            setTimeout(() => {
+                parseAndCompare();
+            }, 100);
+        }
+
+        // **添加测试蓝色高亮的案例**
+        function loadBlueHighlightTestCase() {
+            const testCase = `实际响应:
+{
+  "users": [
+    {
+      "id": "user1",
+      "name": "张三",
+      "age": 25,
+      "email": "zhangsan@example.com"
+    },
+    {
+      "id": "user2", 
+      "name": "李四",
+      "age": 30,
+      "email": "lisi@example.com"
+    }
+  ],
+  "total": 2
+}
+
+预期响应:
+{
+  "users": [
+    {
+      "id": "user1_modified",
+      "name": "张三",
+      "age": 26,
+      "email": "zhangsan@example.com"
+    },
+    {
+      "id": "user2",
+      "name": "李四修改",
+      "age": 30,
+      "email": "lisi@example.com"
+    }
+  ],
+  "total": 2
+}
+
+原始录制响应:
+{
+  "users": [
+    {
+      "id": "user1",
+      "name": "张三",
+      "age": 25,
+      "email": "zhangsan@example.com"
+    },
+    {
+      "id": "user2",
+      "name": "李四",
+      "age": 30,
+      "email": "lisi@example.com"
+    }
+  ],
+  "total": 2
+}`;
+
+            document.getElementById('comparisonInput').value = testCase;
+            showToast('🔑 已加载主键字段差异测试案例', 'info', 2000);
+            // 自动执行对比
+            setTimeout(() => {
+                parseAndCompare();
+            }, 100);
+        }
+
+        // **添加忽略字段测试的案例**
+        function loadIgnoredTestCase() {
+            const testCase = `"=== 真实差异 ===
+⚠️ 警告：发现无法忽略的关键差异，需要重点关注
+
+【差异详情】
+差异详情:
+路径：[1].languageValue 实际值：\"英语\" 预期值：null
+路径：[0].languageValue 实际值：\"简体中文\" 预期值：null
+路径：[2].languageValue 实际值：\"日语\" 预期值：null
+路径：[3].languageValue 实际值：\"阿拉伯语\" 预期值：null
+
+=== 忽略差异 ===
+说明：以下差异已被系统自动忽略，不影响最终对比结果
+
+【系统忽略规则】
+忽略差异说明：
+- 手动忽略标记：包含[IGNORED]标记的字段差异已忽略
+【字段级忽略详情】
+路径：[0].languageValue 预期：[IGNORED]
+路径：[1].languageValue 预期：[IGNORED]
+路径：[2].languageValue 预期：[IGNORED]
+路径：[3].languageValue 预期：[IGNORED]
+
+=== ID映射记录 ===
+说明：系统检测到ID字段差异，已自动建立映射关系进行对比
+
+【映射详情】
+ID映射记录: 无
+
+=== 比较结果说明 ===
+✗ 对比结果：存在差异
+原因：发现无法忽略的真实差异，需要进一步检查
+注意：检测到ID字段差异，已自动应用ID映射规则
+
+=== 响应数据 ===
+实际响应:
+[{\"code\":\"zh_CN\",\"value\":\"简体中文\",\"comments\":\"简体中文\",\"type\":\"language\",\"languageValue\":\"简体中文\"},{\"code\":\"en\",\"value\":\"英文\",\"comments\":\"English\",\"type\":\"language\",\"languageValue\":\"英语\"},{\"code\":\"ja\",\"value\":\"日语\",\"comments\":\"日本語\",\"type\":\"language\",\"languageValue\":\"日语\"},{\"code\":\"ar\",\"value\":\"阿拉伯语\",\"comments\":\"اللغة العربية\",\"type\":\"language\",\"languageValue\":\"阿拉伯语\"}]
+
+预期响应:
+[{\"code\":\"zh_CN\",\"comments\":\"简体中文\",\"type\":\"language\",\"value\":\"简体中文\",\"languageValue\":\"[IGNORED]\"},{\"code\":\"en\",\"comments\":\"English\",\"type\":\"language\",\"value\":\"英文\",\"languageValue\":\"[IGNORED]\"},{\"code\":\"ja\",\"comments\":\"日本語\",\"type\":\"language\",\"value\":\"日语\",\"languageValue\":\"[IGNORED]\"},{\"code\":\"ar\",\"comments\":\"اللغة العربية\",\"type\":\"language\",\"value\":\"阿拉伯语\",\"languageValue\":\"[IGNORED]\"}]
+
+原始录制响应:
+[{\"code\":\"zh_CN\",\"value\":\"简体中文\",\"comments\":\"简体中文\",\"type\":\"language\"},{\"code\":\"en\",\"value\":\"英文\",\"comments\":\"English\",\"type\":\"language\"},{\"code\":\"ja\",\"value\":\"日语\",\"comments\":\"日本語\",\"type\":\"language\"},{\"code\":\"ar\",\"value\":\"阿拉伯语\",\"comments\":\"اللغة العربية\",\"type\":\"language\"}]"`;
+
+            document.getElementById('comparisonInput').value = testCase;
+            showToast('🚫 已加载忽略字段测试案例', 'info', 2000);
+            // 自动执行对比
+            setTimeout(() => {
+                parseAndCompare();
+            }, 100);
+        }
+
+        // 优化后的JSON转义处理函数
+        function unescapeJSONOptimized(str) {
+            try {
+                // 使用更高效的字符串处理
+                let cleaned = str.trim();
+                
+                // 快速检查是否需要处理
+                if (!cleaned.includes('\\')) {
+                    try {
+                        JSON.parse(cleaned);
+                        return cleaned;
+                    } catch (e) {
+                        // 继续处理
+                    }
+                }
+                
+                // 去掉包装的双引号
+                if (cleaned.startsWith('"') && cleaned.endsWith('"')) {
+                    cleaned = cleaned.slice(1, -1);
+                }
+
+                // 使用单次遍历进行所有转义处理
+                const result = cleaned.replace(/\\(u[0-9a-fA-F]{4}|[\\"/bfnrt])/g, (match, p1) => {
+                    switch (p1[0]) {
+                        case 'u': return String.fromCharCode(parseInt(p1.slice(1), 16));
+                        case '\\': return '\\';
+                        case '"': return '"';
+                        case '/': return '/';
+                        case 'b': return '\b';
+                        case 'f': return '\f';
+                        case 'n': return '\n';
+                        case 'r': return '\r';
+                        case 't': return '\t';
+                        default: return match;
+                    }
+                });
+
+                return result;
+            } catch (e) {
+                console.log('unescapeJSONOptimized error:', e.message);
+                return str;
+            }
+        }
+
+        // 优化后的对象键排序函数
+        function sortObjectKeysOptimized(obj) {
+            if (obj === null || typeof obj !== 'object') {
+                return obj;
+            }
+
+            if (Array.isArray(obj)) {
+                // 对于大数组，使用更高效的排序策略
+                if (obj.length > 1000) {
+                    // 大数组不排序，保持原始顺序以提高性能
+                    return obj.map(item => sortObjectKeysOptimized(item));
+                } else {
+                    // 小数组正常排序
+                    return obj.map(item => sortObjectKeysOptimized(item));
+                }
+            }
+
+            // 对象处理 - 使用更高效的方法
+            const keys = Object.keys(obj);
+            if (keys.length > 100) {
+                // 大对象使用原生排序
+                keys.sort();
+            } else {
+                // 小对象使用更详细的排序
+                keys.sort((a, b) => a.localeCompare(b));
+            }
+
+            const sorted = {};
+            for (let i = 0; i < keys.length; i++) {
+                const key = keys[i];
+                sorted[key] = sortObjectKeysOptimized(obj[key]);
+            }
+
+            return sorted;
+        }
+
+        // 优化后的对象比较函数
+        function compareObjectsOptimized(obj1, obj2, path = '') {
+            const differences = [];
+            const maxDifferences = 10000; // 限制最大差异数量
+
+            function addDiff(type, path, value1, value2) {
+                if (differences.length >= maxDifferences) {
+                    return false; // 达到最大差异数量，停止添加
+                }
+                differences.push({
+                    type: type,
+                    path: path,
+                    value1: value1,
+                    value2: value2
+                });
+                return true;
+            }
+
+            function compareValues(val1, val2, currentPath) {
+                if (differences.length >= maxDifferences) {
+                    return false;
+                }
+
+                if (val1 === val2) return true;
+
+                if (typeof val1 !== typeof val2) {
+                    return addDiff('type', currentPath, typeof val1, typeof val2);
+                }
+
+                if (val1 === null || val2 === null) {
+                    return addDiff('value', currentPath, val1, val2);
+                }
+
+                if (typeof val1 === 'object') {
+                    if (Array.isArray(val1) !== Array.isArray(val2)) {
+                        return addDiff('type', currentPath, Array.isArray(val1) ? 'array' : 'object', Array.isArray(val2) ? 'array' : 'object');
+                    }
+
+                    if (Array.isArray(val1)) {
+                        // 数组比较优化
+                        const primaryKey1 = findPrimaryKeyOptimized(val1);
+                        const primaryKey2 = findPrimaryKeyOptimized(val2);
+
+                        if (primaryKey1 && primaryKey2 && primaryKey1 === primaryKey2) {
+                            return compareArraysByPrimaryKeyOptimized(val1, val2, currentPath, primaryKey1);
+                        } else {
+                            return compareArraysByIndexOptimized(val1, val2, currentPath);
+                        }
+                    } else {
+                        // 对象比较优化
+                        const keys1 = Object.keys(val1);
+                        const keys2 = Object.keys(val2);
+                        const allKeys = new Set([...keys1, ...keys2]);
+
+                        for (const key of allKeys) {
+                            if (differences.length >= maxDifferences) break;
+                            
+                            const keyPath = currentPath ? `${currentPath}.${key}` : key;
+                            if (!(key in val1)) {
+                                if (!addDiff('add', keyPath, null, val2[key])) break;
+                            } else if (!(key in val2)) {
+                                if (!addDiff('remove', keyPath, val1[key], null)) break;
+                            } else {
+                                if (!compareValues(val1[key], val2[key], keyPath)) break;
+                            }
+                        }
+                    }
+                } else {
+                    return addDiff('value', currentPath, val1, val2);
+                }
+
+                return true;
+            }
+
+            function compareArraysByPrimaryKeyOptimized(arr1, arr2, currentPath, primaryKey) {
+                const map1 = new Map();
+                const map2 = new Map();
+
+                // 构建映射
+                for (let i = 0; i < arr1.length; i++) {
+                    const item = arr1[i];
+                    if (typeof item === 'object' && item !== null && primaryKey in item) {
+                        map1.set(item[primaryKey], { item, originalIndex: i });
+                    }
+                }
+
+                for (let i = 0; i < arr2.length; i++) {
+                    const item = arr2[i];
+                    if (typeof item === 'object' && item !== null && primaryKey in item) {
+                        map2.set(item[primaryKey], { item, originalIndex: i });
+                    }
+                }
+
+                // 比较
+                const allKeys = new Set([...map1.keys(), ...map2.keys()]);
+                for (const keyValue of allKeys) {
+                    if (differences.length >= maxDifferences) break;
+                    
+                    const itemPath = `${currentPath}[${primaryKey}=${keyValue}]`;
+                    if (!map1.has(keyValue)) {
+                        if (!addDiff('add', itemPath, undefined, map2.get(keyValue).item)) break;
+                    } else if (!map2.has(keyValue)) {
+                        if (!addDiff('remove', itemPath, map1.get(keyValue).item, undefined)) break;
+                    } else {
+                        if (!compareValues(map1.get(keyValue).item, map2.get(keyValue).item, itemPath)) break;
+                    }
+                }
+
+                return true;
+            }
+
+            function compareArraysByIndexOptimized(arr1, arr2, currentPath) {
+                const maxLength = Math.max(arr1.length, arr2.length);
+                for (let i = 0; i < maxLength; i++) {
+                    if (differences.length >= maxDifferences) break;
+                    
+                    const itemPath = `${currentPath}[${i}]`;
+                    if (i >= arr1.length) {
+                        if (!addDiff('add', itemPath, undefined, arr2[i])) break;
+                    } else if (i >= arr2.length) {
+                        if (!addDiff('remove', itemPath, arr1[i], undefined)) break;
+                    } else {
+                        if (!compareValues(arr1[i], arr2[i], itemPath)) break;
+                    }
+                }
+                return true;
+            }
+
+            compareValues(obj1, obj2, path);
+
+            if (differences.length >= maxDifferences) {
+                differences.push({
+                    type: 'info',
+                    path: '...',
+                    value1: `已达到最大差异数量限制 (${maxDifferences})`,
+                    value2: '可能还有更多差异未显示'
+                });
+            }
+
+            return differences;
+        }
+
+        // 优化后的主键查找函数
+        function findPrimaryKeyOptimized(array) {
+            if (!Array.isArray(array) || array.length === 0) {
+                return null;
+            }
+
+            // 只检查前几个元素来确定主键，提高性能
+            const sampleSize = Math.min(array.length, 10);
+            const potentialKeys = new Set();
+
+            for (let i = 0; i < sampleSize; i++) {
+                const item = array[i];
+                if (typeof item === 'object' && item !== null) {
+                    Object.keys(item).forEach(key => {
+                        if (key.toLowerCase().endsWith('id') || key.toLowerCase().endsWith('oid')) {
+                            potentialKeys.add(key);
+                        }
+                    });
+                }
+            }
+
+            // 优先级排序
+            const sortedKeys = Array.from(potentialKeys).sort((a, b) => {
+                const lowerA = a.toLowerCase();
+                const lowerB = b.toLowerCase();
+                if (lowerA === 'id') return -1;
+                if (lowerB === 'id') return 1;
+                if (lowerA === 'oid') return -1;
+                if (lowerB === 'oid') return 1;
+                return a.length - b.length;
+            });
+
+            // 验证主键唯一性（只检查样本）
+            for (const key of sortedKeys) {
+                const values = new Set();
+                let isValid = true;
+
+                for (let i = 0; i < sampleSize; i++) {
+                    const item = array[i];
+                    if (typeof item === 'object' && item !== null && key in item) {
+                        const value = item[key];
+                        if (value === null || value === undefined || values.has(value)) {
+                            isValid = false;
+                            break;
+                        }
+                        values.add(value);
+                    } else {
+                        isValid = false;
+                        break;
+                    }
+                }
+
+                if (isValid) {
+                    return key;
+                }
+            }
+
+            return null;
+        }
+
+        // 大数据结果显示函数（使用虚拟滚动）
+        function displayLargeDataResults(data) {
+            const actualElement = document.getElementById('actual-result');
+            const expectedElement = document.getElementById('expected-result');
+            const originalElement = document.getElementById('original-recorded-result');
+
+            // 检查JSON大小
+            const actualSize = data.formattedActual.length;
+            const expectedSize = data.formattedExpected.length;
+            const originalSize = data.formattedOriginal.length;
+
+            // 如果JSON太大，使用简化显示（只显示有差异的部分）
+            if (actualSize > 500000 || expectedSize > 500000 || originalSize > 500000) {
+                console.log('🚀 启用大数据优化显示模式 - 只显示有差异的属性');
+                
+                // 创建只包含差异的简化JSON
+                const simplifiedActual = createDifferenceOnlyJson(data.sortedActual, data.sortedExpected, data.filteredDifferences, true);
+                const simplifiedExpected = createDifferenceOnlyJson(data.sortedExpected, data.sortedActual, data.filteredDifferences, false);
+                const simplifiedOriginal = createDifferenceOnlyJson(data.sortedOriginal, data.sortedExpected, data.filteredDifferences, false);
+                
+                actualElement.innerHTML = createLargeDataView(simplifiedActual, data.filteredDifferences, true, '实际响应');
+                expectedElement.innerHTML = createLargeDataView(simplifiedExpected, data.filteredDifferences, false, '预期响应');
+                originalElement.innerHTML = createLargeDataView(simplifiedOriginal, data.filteredDifferences, false, '原始录制响应');
+            } else {
+                // 正常显示
+                actualElement.innerHTML = syntaxHighlight(data.formattedActual, data.filteredDifferences, true);
+                expectedElement.innerHTML = syntaxHighlight(data.formattedExpected, data.filteredDifferences, false);
+                originalElement.innerHTML = syntaxHighlight(data.formattedOriginal, data.filteredDifferences, false);
+            }
+
+            // 初始化同步滚动
+            setTimeout(() => {
+                initSyncScroll();
+            }, 100);
+        }
+
+        // 创建只包含差异的JSON（隐藏完全相同的属性）
+        function createDifferenceOnlyJson(sourceJson, targetJson, differences, isActual) {
+            console.log(`📊 创建差异专用JSON - ${isActual ? '实际' : '预期/原始'}响应`);
+            
+            // 检查输入参数
+            if (!sourceJson) {
+                console.warn('createDifferenceOnlyJson: sourceJson is invalid:', sourceJson);
+                return JSON.stringify({ "error": "❌ 源数据为空或无效" }, null, 2);
+            }
+            
+            if (!differences || differences.length === 0) {
+                return JSON.stringify({ "message": "✅ 没有发现差异，所有属性都完全相同" }, null, 2);
+            }
+
+            try {
+                // 收集所有差异路径
+                const differencePaths = new Set();
+                differences.forEach(diff => {
+                    if (diff.path) {
+                        differencePaths.add(diff.path);
+                        // 添加父路径以保持结构完整性
+                        const pathParts = diff.path.split('.');
+                        for (let i = 1; i < pathParts.length; i++) {
+                            const parentPath = pathParts.slice(0, i).join('.');
+                            if (parentPath) {
+                                differencePaths.add(parentPath);
+                            }
+                        }
+                    }
+                });
+
+                console.log(`📍 收集到 ${differencePaths.size} 个差异路径:`, Array.from(differencePaths));
+
+                // 创建带省略号的JSON结构
+                const compactJson = createCompactJsonWithEllipsis(sourceJson, differencePaths);
+                
+                if (compactJson === undefined || compactJson === null) {
+                    console.warn('createCompactJsonWithEllipsis returned invalid result:', compactJson);
+                    return JSON.stringify({ "error": "❌ 处理差异数据时出错" }, null, 2);
+                }
+                
+                return JSON.stringify(compactJson, null, 2);
+            } catch (error) {
+                console.error('createDifferenceOnlyJson error:', error);
+                return JSON.stringify({ 
+                    "error": "❌ 处理差异数据时出错", 
+                    "details": error.message 
+                }, null, 2);
+            }
+        }
+
+        // 创建带省略号的紧凑JSON结构
+        function createCompactJsonWithEllipsis(jsonObj, differencePaths, depth = 0) {
+            const maxDepth = 10; // 最大递归深度
+            
+            if (depth > maxDepth) {
+                return "...深度过深，已省略";
+            }
+            
+            if (!jsonObj || typeof jsonObj !== 'object') {
+                return jsonObj;
+            }
+
+            if (Array.isArray(jsonObj)) {
+                return createCompactArrayWithEllipsis(jsonObj, differencePaths);
+            }
+
+            const result = {};
+            const pathsArray = Array.from(differencePaths);
+            
+            // 获取当前层级的差异路径
+            const currentLevelPaths = pathsArray.filter(path => !path.includes('.') && !path.includes('['));
+            const nestedPaths = pathsArray.filter(path => path.includes('.') || path.includes('['));
+            
+            // 按路径分组处理嵌套结构
+            const nestedGroups = {};
+            nestedPaths.forEach(path => {
+                let firstPart;
+                if (path.includes('.')) {
+                    firstPart = path.split('.')[0];
+                } else if (path.includes('[')) {
+                    firstPart = path.split('[')[0];
+                }
+                
+                if (firstPart) {
+                    if (!nestedGroups[firstPart]) {
+                        nestedGroups[firstPart] = [];
+                    }
+                    
+                    let remainingPath;
+                    if (path.includes('.')) {
+                        remainingPath = path.substring(firstPart.length + 1);
+                    } else if (path.includes('[')) {
+                        remainingPath = path.substring(firstPart.length);
+                    }
+                    
+                    if (remainingPath) {
+                        nestedGroups[firstPart].push(remainingPath);
+                    }
+                }
+            });
+
+            const allKeys = Object.keys(jsonObj);
+            const differenceKeys = new Set([...currentLevelPaths, ...Object.keys(nestedGroups)]);
+            const sameKeys = allKeys.filter(key => !differenceKeys.has(key));
+
+            console.log(`对象处理 - 深度: ${depth}, 总属性: ${allKeys.length}, 差异属性: ${differenceKeys.size}, 相同属性: ${sameKeys.length}`);
+
+            // 添加省略号在开头（如果有相同属性）
+            if (sameKeys.length > 0) {
+                const showSameKeys = sameKeys.slice(0, 3);
+                result["..."] = `隐藏${sameKeys.length}个相同属性: [${showSameKeys.join(', ')}${sameKeys.length > 3 ? '...' : ''}]`;
+            }
+
+            // 处理所有有差异的属性
+            for (const key of differenceKeys) {
+                if (key in jsonObj) {
+                    if (nestedGroups[key] && nestedGroups[key].length > 0) {
+                        // 递归处理嵌套对象
+                        const nestedDifferencePaths = new Set(nestedGroups[key]);
+                        result[key] = createCompactJsonWithEllipsis(jsonObj[key], nestedDifferencePaths, depth + 1);
+                    } else {
+                        // 直接显示差异属性
+                        result[key] = jsonObj[key];
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        // 创建带省略号的紧凑数组结构
+        function createCompactArrayWithEllipsis(arrayObj, differencePaths) {
+            const result = [];
+            const pathsArray = Array.from(differencePaths);
+            
+            // 如果数组为空，直接返回
+            if (!arrayObj || arrayObj.length === 0) {
+                return [];
+            }
+            
+            // 解析数组相关的路径
+            const arrayIndices = new Set();
+            const arrayPrimaryKeys = new Set();
+            
+            pathsArray.forEach(path => {
+                if (path.startsWith('[')) {
+                    const indexPart = path.substring(1, path.indexOf(']'));
+                    if (indexPart.includes('=')) {
+                        // 主键路径 [id=123]
+                        arrayPrimaryKeys.add(indexPart);
+                    } else {
+                        // 数组索引 [0]
+                        const index = parseInt(indexPart);
+                        if (!isNaN(index)) {
+                            arrayIndices.add(index);
+                        }
+                    }
+                }
+            });
+
+            console.log(`数组处理 - 总元素: ${arrayObj.length}, 主键差异: ${arrayPrimaryKeys.size}, 索引差异: ${arrayIndices.size}`);
+
+            // 如果有主键差异，显示所有相关的数组元素
+            if (arrayPrimaryKeys.size > 0) {
+                const shownItems = new Set();
+                
+                arrayPrimaryKeys.forEach(keyValue => {
+                    const [keyName, value] = keyValue.split('=');
+                    const item = arrayObj.find(item => 
+                        item && typeof item === 'object' && 
+                        String(item[keyName]) === value
+                    );
+                    
+                    if (item) {
+                        const itemIndex = arrayObj.indexOf(item);
+                        shownItems.add(itemIndex);
+                        
+                        // 处理该元素的嵌套差异
+                        const nestedPaths = pathsArray
+                            .filter(path => path.startsWith(`[${keyValue}]`))
+                            .map(path => path.substring(`[${keyValue}]`.length + 1))
+                            .filter(path => path.length > 0);
+                        
+                        if (nestedPaths.length > 0) {
+                            result.push(createCompactJsonWithEllipsis(item, new Set(nestedPaths)));
+                        } else {
+                            result.push(item);
+                        }
+                    }
+                });
+                
+                // 添加省略号表示其他相同元素
+                const hiddenCount = arrayObj.length - shownItems.size;
+                if (hiddenCount > 0) {
+                    result.push(`...其他${hiddenCount}个相同元素`);
+                }
+            }
+            // 如果有索引差异，显示所有相关的数组元素
+            else if (arrayIndices.size > 0) {
+                const sortedIndices = Array.from(arrayIndices).sort((a, b) => a - b);
+                
+                let lastShownIndex = -1;
+                
+                for (const index of sortedIndices) {
+                    // 如果索引之间有间隔，添加省略号
+                    if (lastShownIndex >= 0 && index > lastShownIndex + 1) {
+                        result.push("...");
+                    }
+                    
+                    if (index < arrayObj.length) {
+                        result.push(arrayObj[index]);
+                        lastShownIndex = index;
+                    }
+                }
+                
+                // 如果最后显示的索引不是数组的最后一个元素，添加省略号
+                if (lastShownIndex >= 0 && lastShownIndex < arrayObj.length - 1) {
+                    result.push("...");
+                }
+            }
+            // 如果没有具体的数组差异路径，但数组本身在差异路径中
+            else {
+                // 检查是否整个数组都有差异
+                const hasArrayDifference = pathsArray.some(path => path === '' || path === '[]');
+                
+                if (hasArrayDifference) {
+                    // 如果整个数组都有差异，显示所有元素
+                    return arrayObj;
+                } else {
+                    // 如果没有明确的差异，显示摘要
+                    result.push(`...数组包含${arrayObj.length}个元素，无明确差异`);
+                }
+            }
+
+            return result;
+        }
+
+        // 创建大数据视图
+        function createLargeDataView(jsonString, differences, isActual, title) {
+            // 检查输入参数
+            if (!jsonString || typeof jsonString !== 'string') {
+                console.warn('createLargeDataView: jsonString is invalid:', jsonString);
+                return `
+                    <div style="background: #ffebee; padding: 10px; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid #f44336;">
+                        <div style="font-weight: bold; color: #c62828;">⚠️ ${title || '数据'} - 数据无效</div>
+                        <div style="font-size: 0.9em; color: #666; margin-top: 5px;">
+                            无法显示数据：输入为空或格式不正确
+                        </div>
+                    </div>
+                `;
+            }
+
+            const lines = jsonString.split('\n');
+            const totalLines = lines.length;
+            const maxDisplayLines = 1000; // 最多显示1000行
+
+            if (totalLines <= maxDisplayLines) {
+                // 如果行数不多，正常显示
+                return syntaxHighlight(jsonString, differences, isActual);
+            }
+
+            // 创建简化的头部提示
+            const summary = `
+                <div style="background: #f0f8ff; padding: 10px; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid #2196F3;">
+                    <div style="display: flex; align-items: center; gap: 20px;">
+                        <div style="font-weight: bold; color: #1976D2;">📊 ${title} - 差异专用视图</div>
+                        <div style="font-size: 0.9em; color: #666;">
+                            差异数量: <span style="color: #ff5722; font-weight: bold;">${differences.length}</span> | 
+                            显示行数: <span style="color: #2196F3; font-weight: bold;">${totalLines.toLocaleString()}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // 显示前面的行
+            const displayLines = lines.slice(0, maxDisplayLines);
+            const displayJson = displayLines.join('\n');
+            const highlightedJson = syntaxHighlight(displayJson, differences, isActual);
+
+            return summary + highlightedJson + (totalLines > maxDisplayLines ? `
+                <div style="background: #fff3cd; padding: 10px; border-radius: 8px; margin-top: 10px; border-left: 4px solid #ffc107;">
+                    <div style="font-size: 0.9em; color: #856404;">
+                        ⚠️ 已截断显示：隐藏了 ${(totalLines - maxDisplayLines).toLocaleString()} 行差异数据
+                    </div>
+                </div>
+            ` : '');
+        }
+    </script>
+</body>
+
+</html>
